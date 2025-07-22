@@ -24,12 +24,16 @@ let scanResults = {
   }
 };
 
+// Track current scan scope for refreshing after fixes
+let currentScanScope = 'page'; // 'selection', 'page', or 'file'
+let lastScannedNodes = [];
+
 // Get all available text styles with caching
 let availableTextStylesCache = null;
 let textStylesCacheTimestamp = 0;
 const CACHE_DURATION = 30000; // 30 seconds
 
-function getAvailableTextStyles() {
+async function getAvailableTextStyles() {
   const now = Date.now();
   
   // Return cached text styles if still valid
@@ -39,21 +43,259 @@ function getAvailableTextStyles() {
   
   console.log('Refreshing text styles cache...');
   
+  // IMPORTANT: This function should NEVER modify the document during scanning.
+  // It should only read and discover available text styles without changing anything.
+  
   let allTextStyles = [];
+  const seenStyleIds = new Set();
   
   try {
-    // Get local text styles
+    // Get local text styles first
     const localTextStyles = figma.getLocalTextStyles();
     console.log('Local text styles found:', localTextStyles.length);
-    allTextStyles = allTextStyles.concat(localTextStyles);
+    localTextStyles.forEach(style => {
+      if (!seenStyleIds.has(style.id)) {
+        allTextStyles.push(style);
+        seenStyleIds.add(style.id);
+      }
+    });
     
-    // Get remote text styles from libraries
+    // Enhanced approach to find ALL library text styles
+    console.log('Searching for library text styles...');
+    
+    // Method 1: Traverse document for currently used styles
+    const traverseForStyles = (node) => {
+      if (node.type === 'TEXT' && node.textStyleId) {
+        try {
+          const style = figma.getStyleById(node.textStyleId);
+          if (style && style.type === 'TEXT' && !seenStyleIds.has(style.id)) {
+            allTextStyles.push(style);
+            seenStyleIds.add(style.id);
+            console.log('Found used text style:', style.name, style.remote ? '(Library)' : '(Local)');
+          }
+        } catch (error) {
+          // Style might not be available, skip it
+        }
+      }
+      
+      if ('children' in node && node.children) {
+        node.children.forEach(traverseForStyles);
+      }
+    };
+    
+    // Traverse all pages (this also helps find styles used in non-visible pages)
+    figma.root.children.forEach(page => {
+      page.children.forEach(traverseForStyles);
+    });
+    
+    // Try to access team library styles through the teamLibrary API if available
     try {
-      const remoteTextStyles = figma.getLocalTextStyles();
-      allTextStyles = allTextStyles.concat(remoteTextStyles);
+      if (figma.teamLibrary && figma.teamLibrary.getAvailableLibraryTextStylesAsync) {
+        console.log('Attempting to access team library text styles...');
+        const libraryStyles = await figma.teamLibrary.getAvailableLibraryTextStylesAsync();
+        libraryStyles.forEach(style => {
+          if (!seenStyleIds.has(style.id)) {
+            allTextStyles.push(style);
+            seenStyleIds.add(style.id);
+            console.log('Found team library text style:', style.name);
+          }
+        });
+      }
     } catch (error) {
-      console.log('Error getting remote text styles:', error);
+      console.log('Team library API not available or failed:', error.message);
     }
+    
+    // Method 2: Try to load library components to discover their text styles
+    try {
+      // Find all component instances and try to access their main components
+      const allInstances = figma.root.findAll(node => node.type === 'INSTANCE');
+      console.log('Checking', allInstances.length, 'component instances for library styles...');
+      
+      // Use Set to track processed component keys to avoid duplicates
+      const processedComponentKeys = new Set();
+      
+      for (const instance of allInstances) {
+        try {
+          // Check if this instance has a remote main component
+          if (instance.mainComponent && instance.mainComponent.remote) {
+            const componentKey = instance.mainComponent.key;
+            
+            // Skip if we've already processed this component
+            if (!processedComponentKeys.has(componentKey)) {
+              processedComponentKeys.add(componentKey);
+              console.log('Found library component instance:', instance.name);
+              
+              // Traverse the instance to find text styles
+              traverseForStyles(instance);
+              
+              // Also try to access the main component if possible
+              try {
+                if (componentKey) {
+                  // Try to import the component to access all its styles
+                  const importedComponent = await figma.importComponentByKeyAsync(componentKey);
+                  if (importedComponent) {
+                    console.log('Successfully imported library component:', importedComponent.name);
+                    traverseForStyles(importedComponent);
+                    
+                    // Create a temporary instance to ensure we get all default styles
+                    try {
+                      const tempInstance = importedComponent.createInstance();
+                      traverseForStyles(tempInstance);
+                      tempInstance.remove(); // Clean up the temporary instance
+                    } catch (tempError) {
+                      console.log('Could not create temporary instance:', tempError.message);
+                    }
+                  }
+                }
+              } catch (importError) {
+                console.log('Could not import component:', importError.message);
+              }
+            }
+          }
+        } catch (error) {
+          // Skip this instance
+        }
+      }
+    } catch (error) {
+      console.log('Error accessing library components:', error);
+    }
+    
+    // Method 3: Try to discover styles through style overrides
+    const findStylesInOverrides = (node) => {
+      if (node.type === 'INSTANCE') {
+        try {
+          // Check text style overrides
+          const textChildren = node.findAll(child => child.type === 'TEXT');
+          textChildren.forEach(textNode => {
+            if (textNode.textStyleId) {
+              try {
+                const style = figma.getStyleById(textNode.textStyleId);
+                if (style && style.type === 'TEXT' && !seenStyleIds.has(style.id)) {
+                  allTextStyles.push(style);
+                  seenStyleIds.add(style.id);
+                  console.log('Found text style from instance:', style.name, style.remote ? '(Library)' : '(Local)');
+                }
+              } catch (error) {
+                // Skip if style is not accessible
+              }
+            }
+          });
+        } catch (error) {
+          // Skip this instance
+        }
+      }
+      
+      if ('children' in node && node.children) {
+        node.children.forEach(findStylesInOverrides);
+      }
+    };
+    
+    figma.root.children.forEach(page => {
+      page.children.forEach(findStylesInOverrides);
+    });
+    
+    // Method 4: Try to access styles through team library (experimental)
+    try {
+      // Check if we can access any additional library information
+      // Unfortunately, the Figma API doesn't provide direct access to all library styles
+      // that aren't currently used in the document
+      
+      console.log('Attempting to discover unused library styles...');
+      
+      // Try to access styles through different means
+      // This is a workaround since there's no direct API
+      const tryAccessLibraryStyles = async () => {
+        // Method 4a: Look for library components that might contain text styles
+        const libraryInstances = figma.root.findAll(node => 
+          node.type === 'INSTANCE' && 
+          node.mainComponent && 
+          node.mainComponent.remote
+        );
+        
+        for (const instance of libraryInstances) {
+          try {
+            // Just traverse the instance as-is to find currently used text styles
+            // CRITICAL: DO NOT reset overrides as this modifies the document during scanning!
+            // Previously this code called instance.resetOverrides() which caused auto-fixing
+            // during scanning, which is unacceptable user experience.
+            traverseForStyles(instance);
+          } catch (error) {
+            // Skip this instance
+          }
+        }
+        
+        // Method 4b: Try to trigger style loading by accessing component sets
+        const componentSets = figma.root.findAll(node => node.type === 'COMPONENT_SET');
+        console.log('Checking', componentSets.length, 'component sets for library styles...');
+        for (const componentSet of componentSets) {
+          try {
+            if (componentSet.remote) {
+              console.log('Found remote component set:', componentSet.name);
+              traverseForStyles(componentSet);
+              
+              // Also try to import the component set to access more styles
+              try {
+                if (componentSet.key) {
+                  const importedComponentSet = await figma.importComponentSetByKeyAsync(componentSet.key);
+                  if (importedComponentSet) {
+                    console.log('Successfully imported component set:', importedComponentSet.name);
+                    traverseForStyles(importedComponentSet);
+                    
+                    // Traverse all variants in the component set
+                    importedComponentSet.children.forEach(variant => {
+                      traverseForStyles(variant);
+                    });
+                  }
+                }
+              } catch (importError) {
+                console.log('Could not import component set:', importError.message);
+              }
+            }
+          } catch (error) {
+            // Skip this component set
+          }
+        }
+        
+        // Method 4c: Check if there are any team library styles by looking at import history
+        try {
+          // Try to access any recently used styles that might still be in memory
+          // This is a bit of a hack, but might help discover some library styles
+          const allTextNodes = figma.root.findAll(node => node.type === 'TEXT');
+          
+          // Check if any text nodes have been recently changed and might have library styles
+          for (const textNode of allTextNodes) {
+            try {
+              // Check if there are any style references in the node's history
+              if (textNode.textStyleId && textNode.textStyleId !== '') {
+                const style = figma.getStyleById(textNode.textStyleId);
+                if (style && style.remote && !seenStyleIds.has(style.id)) {
+                  allTextStyles.push(style);
+                  seenStyleIds.add(style.id);
+                  console.log('Found library style from text node:', style.name);
+                }
+              }
+            } catch (error) {
+              // Skip this text node
+            }
+          }
+        } catch (error) {
+          console.log('Error in additional style discovery:', error);
+        }
+      };
+      
+      await tryAccessLibraryStyles();
+      
+    } catch (error) {
+      console.log('Library style discovery error:', error);
+    }
+    
+    // Sort text styles: local first, then remote, alphabetically within each group
+    allTextStyles.sort((a, b) => {
+      if (a.remote !== b.remote) {
+        return a.remote ? 1 : -1; // Local styles first
+      }
+      return a.name.localeCompare(b.name);
+    });
     
   } catch (error) {
     console.log('Error getting text styles:', error);
@@ -63,16 +305,32 @@ function getAvailableTextStyles() {
   availableTextStylesCache = allTextStyles;
   textStylesCacheTimestamp = now;
   
+  console.log('=== TEXT STYLE DISCOVERY SUMMARY ===');
   console.log('Total available text styles:', allTextStyles.length);
+  console.log('Local text styles:', allTextStyles.filter(s => !s.remote).length);
+  console.log('Remote/Library text styles:', allTextStyles.filter(s => s.remote).length);
+  
+  if (allTextStyles.filter(s => s.remote).length > 0) {
+    console.log('Library styles found:');
+    allTextStyles.filter(s => s.remote).forEach(style => {
+      console.log('  -', style.name);
+    });
+  } else {
+    console.log('ℹ️ No library text styles found. This could mean:');
+    console.log('  - No libraries are connected to this file');
+    console.log('  - Library styles haven\'t been used in this document yet');
+    console.log('  - The plugin can only discover library styles that are currently used in the document due to Figma API limitations');
+  }
+  
   return allTextStyles;
 }
 
-// Find matching text style based on font properties
-function findMatchingTextStyle(textNode) {
-  const textStyles = getAvailableTextStyles();
+// Find matching text styles based on font properties - returns multiple matches
+async function findMatchingTextStyles(textNode) {
+  const textStyles = await getAvailableTextStyles();
   
   if (!textNode.fontName || !textNode.fontSize) {
-    return null;
+    return { matches: [], allStyles: textStyles };
   }
   
   const nodeFontName = textNode.fontName;
@@ -80,65 +338,83 @@ function findMatchingTextStyle(textNode) {
   const nodeLineHeight = textNode.lineHeight;
   const nodeLetterSpacing = textNode.letterSpacing;
   
-  // Try exact match first
-  let match = textStyles.find(style => {
+  const matches = [];
+  
+  // Find exact matches first
+  textStyles.forEach(style => {
     try {
       const styleFontName = style.fontName;
       const styleFontSize = style.fontSize;
       const styleLineHeight = style.lineHeight;
       const styleLetterSpacing = style.letterSpacing;
       
-      return styleFontName.family === nodeFontName.family &&
-             styleFontName.style === nodeFontName.style &&
-             styleFontSize === nodeFontSize &&
-             (styleLineHeight === nodeLineHeight || 
-              (styleLineHeight && nodeLineHeight && 
-               Math.abs(styleLineHeight.value - nodeLineHeight.value) < 0.1)) &&
-             (styleLetterSpacing === nodeLetterSpacing ||
-              (styleLetterSpacing && nodeLetterSpacing &&
-               Math.abs(styleLetterSpacing.value - nodeLetterSpacing.value) < 0.1));
+      if (styleFontName.family === nodeFontName.family &&
+          styleFontName.style === nodeFontName.style &&
+          styleFontSize === nodeFontSize &&
+          (styleLineHeight === nodeLineHeight || 
+           (styleLineHeight && nodeLineHeight && 
+            Math.abs(styleLineHeight.value - nodeLineHeight.value) < 0.1)) &&
+          (styleLetterSpacing === nodeLetterSpacing ||
+           (styleLetterSpacing && nodeLetterSpacing &&
+            Math.abs(styleLetterSpacing.value - nodeLetterSpacing.value) < 0.1))) {
+        
+        matches.push({
+          style: style,
+          matchType: 'exact',
+          isFromLibrary: style.remote || false,
+          libraryName: style.remote ? (style.description || 'Connected Library') : null
+        });
+      }
     } catch (error) {
-      return false;
+      // Skip this style
     }
   });
   
-  if (match) {
-    return { style: match, matchType: 'exact' };
+  // If no exact matches, try partial matches (same font family and size)
+  if (matches.length === 0) {
+    textStyles.forEach(style => {
+      try {
+        const styleFontName = style.fontName;
+        const styleFontSize = style.fontSize;
+        
+        if (styleFontName.family === nodeFontName.family &&
+            styleFontName.style === nodeFontName.style &&
+            styleFontSize === nodeFontSize) {
+          
+          matches.push({
+            style: style,
+            matchType: 'partial',
+            isFromLibrary: style.remote || false,
+            libraryName: style.remote ? (style.description || 'Connected Library') : null
+          });
+        }
+      } catch (error) {
+        // Skip this style
+      }
+    });
   }
   
-  // Try partial match (same font family and size)
-  match = textStyles.find(style => {
-    try {
-      const styleFontName = style.fontName;
-      const styleFontSize = style.fontSize;
-      
-      return styleFontName.family === nodeFontName.family &&
-             styleFontName.style === nodeFontName.style &&
-             styleFontSize === nodeFontSize;
-    } catch (error) {
-      return false;
-    }
-  });
-  
-  if (match) {
-    return { style: match, matchType: 'partial' };
+  // If still no matches, try fuzzy matches (same font family)
+  if (matches.length === 0) {
+    textStyles.forEach(style => {
+      try {
+        const styleFontName = style.fontName;
+        
+        if (styleFontName.family === nodeFontName.family) {
+          matches.push({
+            style: style,
+            matchType: 'fuzzy',
+            isFromLibrary: style.remote || false,
+            libraryName: style.remote ? (style.description || 'Connected Library') : null
+          });
+        }
+      } catch (error) {
+        // Skip this style
+      }
+    });
   }
   
-  // Try fuzzy match (same font family)
-  match = textStyles.find(style => {
-    try {
-      const styleFontName = style.fontName;
-      return styleFontName.family === nodeFontName.family;
-    } catch (error) {
-      return false;
-    }
-  });
-  
-  if (match) {
-    return { style: match, matchType: 'fuzzy' };
-  }
-  
-  return null;
+  return { matches, allStyles: textStyles };
 }
 
 // Find matching color variable
@@ -226,7 +502,7 @@ function applyColorVariable(node, variable, propertyPath) {
 }
 
 // Main scanning function
-function scanForDetachedElements(nodes) {
+async function scanForDetachedElements(nodes) {
   resetResults();
   
   if (!nodes || nodes.length === 0) {
@@ -239,11 +515,12 @@ function scanForDetachedElements(nodes) {
   // Track node types we find
   const nodeTypes = {};
   
-  nodes.forEach((node, index) => {
+  for (let index = 0; index < nodes.length; index++) {
+    const node = nodes[index];
     console.log(`Processing node ${index + 1}/${nodes.length}:`, node.name, '(', node.type, ')');
     nodeTypes[node.type] = (nodeTypes[node.type] || 0) + 1;
-    traverseNode(node);
-  });
+    await traverseNode(node);
+  }
 
   console.log('Node types found:', nodeTypes);
   console.log('Scan complete. Results:', scanResults);
@@ -264,10 +541,14 @@ function resetResults() {
       layers: 0
     }
   };
+  
+  // Force refresh of text styles cache to capture any newly connected libraries
+  availableTextStylesCache = null;
+  textStylesCacheTimestamp = 0;
 }
 
 // Traverse through all nodes recursively
-function traverseNode(node) {
+async function traverseNode(node) {
   try {
     console.log('Traversing node:', node.name, 'Type:', node.type, 'ID:', node.id);
 
@@ -278,8 +559,19 @@ function traverseNode(node) {
       if (node.textStyleId === '') {
         console.log('Detected text without style:', node.name);
         
-        // Find matching text style
-        const textStyleMatch = findMatchingTextStyle(node);
+        // Find matching text styles
+        const textStyleMatches = await findMatchingTextStyles(node);
+        
+        // Get all available text styles and ensure they're properly formatted
+        const allAvailableStyles = textStyleMatches.allStyles.map(style => ({
+          id: style.id,
+          name: style.name,
+          isFromLibrary: style.remote || false,
+          libraryName: style.remote ? (style.description || 'Connected Library') : null,
+          fontFamily: style.fontName ? style.fontName.family : '',
+          fontStyle: style.fontName ? style.fontName.style : '',
+          fontSize: style.fontSize || 0
+        }));
         
         const textStyleData = {
           id: node.id,
@@ -291,14 +583,26 @@ function traverseNode(node) {
           fontName: node.fontName,
           fontSize: node.fontSize,
           lineHeight: node.lineHeight,
-          letterSpacing: node.letterSpacing
+          letterSpacing: node.letterSpacing,
+          // Include ALL available text styles in the dropdown, not just matches
+          availableTextStyles: allAvailableStyles
         };
         
-        if (textStyleMatch) {
-          textStyleData.suggestedTextStyle = textStyleMatch.style.name;
-          textStyleData.suggestedTextStyleId = textStyleMatch.style.id;
-          textStyleData.matchType = textStyleMatch.matchType;
-          textStyleData.description = `Text without applied text style • Matches "${textStyleMatch.style.name}" (${textStyleMatch.matchType} match)`;
+        if (textStyleMatches.matches.length > 0) {
+          const bestMatch = textStyleMatches.matches[0];
+          textStyleData.suggestedTextStyle = bestMatch.style.name;
+          textStyleData.suggestedTextStyleId = bestMatch.style.id;
+          textStyleData.matchType = bestMatch.matchType;
+          textStyleData.isFromLibrary = bestMatch.isFromLibrary;
+          textStyleData.libraryName = bestMatch.libraryName;
+          textStyleData.textStyleMatches = textStyleMatches.matches;
+          
+          let libraryIndicator = '';
+          if (bestMatch.isFromLibrary) {
+            libraryIndicator = ` (Library: ${bestMatch.libraryName || 'Connected Library'})`;
+          }
+          
+          textStyleData.description = `Text without text style`;
         }
         
         scanResults.detachedTextStyles.push(textStyleData);
@@ -543,10 +847,11 @@ function traverseNode(node) {
     console.log('Checking children for node:', node.name, 'Type:', node.type, 'Has children property:', 'children' in node);
     if ('children' in node && node.children && node.children.length > 0) {
       console.log('Node', node.name, 'has', node.children.length, 'children, traversing...');
-      node.children.forEach((child, index) => {
+      for (let index = 0; index < node.children.length; index++) {
+        const child = node.children[index];
         console.log(`  Traversing child ${index + 1}/${node.children.length}:`, child.name, '(', child.type, ')');
-        traverseNode(child);
-      });
+        await traverseNode(child);
+      }
     } else {
       console.log('Node', node.name, 'has no children or children property. Children:', node.children);
     }
@@ -626,6 +931,49 @@ function updateSummary() {
     scanResults.summary.layers;
 }
 
+// Refresh current scan to update results after fixes
+async function refreshCurrentScan() {
+  console.log('Refreshing current scan scope:', currentScanScope);
+  
+  try {
+    let results;
+    
+    switch (currentScanScope) {
+      case 'selection':
+        const selection = figma.currentPage.selection;
+        if (selection.length === 0) {
+          figma.ui.postMessage({ type: 'no-selection' });
+          return;
+        }
+        results = await scanForDetachedElements(selection);
+        break;
+        
+      case 'page':
+        const pageNodes = figma.currentPage.children;
+        results = await scanForDetachedElements(pageNodes);
+        break;
+        
+      case 'file':
+        const allPages = figma.root.children;
+        let allNodes = [];
+        allPages.forEach(page => {
+          allNodes = allNodes.concat(page.children);
+        });
+        results = await scanForDetachedElements(allNodes);
+        break;
+        
+      default:
+        console.log('Unknown scan scope:', currentScanScope);
+        return;
+    }
+    
+    figma.ui.postMessage({ type: 'scan-results', results });
+  } catch (error) {
+    console.error('Error refreshing scan:', error);
+    figma.notify('Error refreshing scan results');
+  }
+}
+
 // Handle messages from UI
 figma.ui.onmessage = async (msg) => {
   console.log('Received message:', msg.type);
@@ -635,13 +983,16 @@ figma.ui.onmessage = async (msg) => {
     const selection = figma.currentPage.selection;
     console.log('Selection count:', selection.length);
     
+    // Update current scan scope
+    currentScanScope = 'selection';
+    
     // Check if nothing is selected
     if (selection.length === 0) {
       figma.ui.postMessage({ type: 'no-selection' });
       return;
     }
     
-    const results = scanForDetachedElements(selection);
+    const results = await scanForDetachedElements(selection);
     figma.ui.postMessage({ type: 'scan-results', results });
   }
   
@@ -649,7 +1000,11 @@ figma.ui.onmessage = async (msg) => {
     console.log('Scanning page...');
     const pageNodes = figma.currentPage.children;
     console.log('Page nodes count:', pageNodes.length);
-    const results = scanForDetachedElements(pageNodes);
+    
+    // Update current scan scope
+    currentScanScope = 'page';
+    
+    const results = await scanForDetachedElements(pageNodes);
     figma.ui.postMessage({ type: 'scan-results', results });
   }
   
@@ -663,7 +1018,11 @@ figma.ui.onmessage = async (msg) => {
     });
     
     console.log('Total nodes count:', allNodes.length);
-    const results = scanForDetachedElements(allNodes);
+    
+    // Update current scan scope
+    currentScanScope = 'file';
+    
+    const results = await scanForDetachedElements(allNodes);
     figma.ui.postMessage({ type: 'scan-results', results });
   }
   
@@ -688,11 +1047,10 @@ figma.ui.onmessage = async (msg) => {
       if (node && textStyle && node.type === 'TEXT') {
         const success = applyTextStyle(node, textStyle);
         if (success) {
-          figma.notify(`Applied text style "${textStyle.name}" to "${node.name}"`);
-          // Refresh the scan results
-          const selection = figma.currentPage.selection;
-          const results = scanForDetachedElements(selection);
-          figma.ui.postMessage({ type: 'scan-results', results });
+          const styleSource = textStyle.remote ? ' (from connected library)' : '';
+          figma.notify(`Applied text style "${textStyle.name}"${styleSource} to "${node.name}"`);
+          // Refresh the scan results using the current scan scope
+          await refreshCurrentScan();
         } else {
           figma.notify('Failed to apply text style');
         }
@@ -711,10 +1069,8 @@ figma.ui.onmessage = async (msg) => {
         const success = applyColorVariable(node, variable, msg.propertyPath);
         if (success) {
           figma.notify(`Applied color variable "${variable.name}" to "${node.name}"`);
-          // Refresh the scan results
-          const selection = figma.currentPage.selection;
-          const results = scanForDetachedElements(selection);
-          figma.ui.postMessage({ type: 'scan-results', results });
+          // Refresh the scan results using the current scan scope
+          await refreshCurrentScan();
         } else {
           figma.notify('Failed to apply color variable');
         }

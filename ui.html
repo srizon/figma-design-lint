@@ -521,8 +521,8 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 12px;
-      position: relative;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .item-title {
@@ -534,21 +534,218 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      margin-right: 8px;
+    }
+
+    .item-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
     }
 
     .item-badge {
       background: var(--border-primary);
       color: var(--text-tertiary);
-      padding: 3px 8px;
+      padding: 3px 6px;
       border-radius: 4px;
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       flex-shrink: 0;
-      position: absolute;
-      top: 0;
-      right: 0;
+      white-space: nowrap;
+    }
+
+    .item-badge.type {
+      background: var(--border-primary);
+      color: var(--text-tertiary);
+    }
+
+    .item-badge.library {
+      background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+      color: white;
+      box-shadow: 0 1px 3px rgba(156, 39, 176, 0.3);
+      transition: all 0.15s ease;
+    }
+
+    .item-badge.library:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(156, 39, 176, 0.4);
+    }
+
+    .item-badge.match {
+      color: white;
+      transition: all 0.15s ease;
+    }
+
+    .item-badge.match:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .item-badge.match.exact {
+      background: #4CAF50;
+    }
+
+    .item-badge.match.partial {
+      background: #FF9800;
+    }
+
+    .item-badge.match.fuzzy {
+      background: #2196F3;
+    }
+
+    .item-badge.match.similar {
+      background: #FF9800;
+    }
+
+    /* Item actions for fix buttons */
+    .item-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-primary);
+    }
+
+    /* Override alignment for text style selectors */
+    .item-actions .text-style-selector {
+      justify-content: flex-start;
+      width: 100%;
+    }
+
+    .fix-button {
+      background: var(--accent-primary);
+      border: 1px solid var(--accent-primary);
+      border-radius: 4px;
+      color: white;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+
+    .fix-button:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    /* Text style selector dropdown */
+    .text-style-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .style-dropdown {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 11px;
+      padding: 6px 8px;
+      min-width: 180px;
+      cursor: pointer;
+      flex: 1;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 8px center;
+      background-repeat: no-repeat;
+      background-size: 12px;
+      padding-right: 28px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .style-dropdown:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      background: var(--bg-elevated);
+    }
+
+    .style-dropdown:hover {
+      background: var(--bg-elevated);
+      border-color: var(--border-secondary);
+    }
+
+    .style-dropdown option {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      padding: 6px 8px;
+      font-size: 11px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .style-dropdown optgroup {
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      font-weight: 600;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 4px 8px;
+      margin: 2px 0;
+    }
+
+    .style-dropdown optgroup option {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      padding-left: 12px;
+    }
+
+    .apply-style-button {
+      background: var(--accent-primary);
+      border: 1px solid var(--accent-primary);
+      border-radius: 4px;
+      color: white;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .apply-style-button:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .apply-style-button:disabled {
+      background: var(--bg-tertiary);
+      border-color: var(--border-primary);
+      color: var(--text-tertiary);
+      cursor: not-allowed;
+    }
+
+
+
+    /* Responsive adjustments for text style selector */
+    @media (max-width: 600px) {
+      .text-style-selector {
+        gap: 6px;
+      }
+      
+      .style-dropdown {
+        font-size: 10px;
+      }
+      
+      .apply-style-button {
+        font-size: 10px;
+        padding: 5px 10px;
+        flex-shrink: 0;
+      }
     }
 
     /* Color preview display */
@@ -626,74 +823,7 @@
       overflow-wrap: break-word;
     }
 
-    /* Suggestion section */
-    .suggestion-section {
-      background: var(--success-bg);
-      border: 1px solid var(--success-border);
-      border-radius: 6px;
-      padding: 10px;
-      margin-top: 8px;
-    }
 
-    .suggestion-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .suggestion-icon {
-      font-size: 12px;
-      color: var(--success-text);
-    }
-
-    .suggestion-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--success-text);
-    }
-
-    .suggestion-content {
-      font-size: 10px;
-      color: var(--success-text);
-      margin-bottom: 10px;
-      line-height: 1.4;
-    }
-
-    .suggestion-actions {
-      display: flex;
-      gap: 8px;
-    }
-
-    .suggestion-button {
-      background: var(--success-border);
-      border: 1px solid var(--success-border);
-      border-radius: 4px;
-      color: var(--success-text);
-      font-size: 10px;
-      font-weight: 500;
-      padding: 6px 10px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      flex: 1;
-      text-align: center;
-    }
-
-    .suggestion-button:hover {
-      background: var(--success-text);
-      color: var(--success-bg);
-    }
-
-    .suggestion-button.reject {
-      background: var(--error-bg);
-      border-color: var(--error-border);
-      color: var(--error-text);
-    }
-
-    .suggestion-button.reject:hover {
-      background: var(--error-text);
-      color: var(--error-bg);
-    }
 
     /* Font properties display */
     .font-properties {
@@ -724,15 +854,43 @@
       .item-header {
         flex-direction: column;
         align-items: flex-start;
-        gap: 6px;
+        gap: 8px;
       }
       
-      .item-badge {
-        align-self: flex-start;
+      .item-title {
+        margin-right: 0;
+        margin-bottom: 4px;
+      }
+      
+      .item-badges {
+        align-self: stretch;
+        justify-content: flex-start;
       }
 
-      .suggestion-actions {
-        flex-direction: column;
+      .item-badge {
+        font-size: 8px;
+        padding: 2px 4px;
+      }
+
+
+
+
+    }
+
+    /* Ensure badges never overlap on any screen size */
+    .item-badges .item-badge:not(:last-child) {
+      margin-right: 2px;
+    }
+
+    /* Compact layout for very small badges when needed */
+    @media (max-width: 400px) {
+      .item-badge {
+        font-size: 7px;
+        padding: 1px 3px;
+      }
+      
+      .item-badges {
+        gap: 4px;
       }
     }
 
@@ -1267,35 +1425,24 @@
       container.innerHTML = items.map(item => {
         let matchBadge = '';
         if (item.suggestedTextStyle && item.matchType) {
-          const matchColors = {
-            'exact': '#4CAF50',
-            'partial': '#FF9800',
-            'fuzzy': '#2196F3'
-          };
           const matchLabels = {
             'exact': 'Exact Match',
             'partial': 'Partial Match',
             'fuzzy': 'Similar Match'
           };
-          matchBadge = `<div class="item-badge" style="background: ${matchColors[item.matchType]}; color: white; position: absolute; top: 0; right: 60px;">${matchLabels[item.matchType]}</div>`;
+          matchBadge = `<div class="item-badge match ${item.matchType}">${matchLabels[item.matchType]}</div>`;
         } else if (item.suggestedVariable && item.matchType) {
-          const matchColors = {
-            'exact': '#4CAF50',
-            'similar': '#FF9800'
-          };
           const matchLabels = {
             'exact': 'Exact Match',
             'similar': 'Similar Match'
           };
-          matchBadge = `<div class="item-badge" style="background: ${matchColors[item.matchType]}; color: white; position: absolute; top: 0; right: 60px;">${matchLabels[item.matchType]}</div>`;
+          matchBadge = `<div class="item-badge match ${item.matchType}">${matchLabels[item.matchType]}</div>`;
         }
         
-        // Generate suggestion section based on item type
-        let suggestionSection = '';
-        if (type === 'text-style' && item.suggestedTextStyle) {
-          suggestionSection = generateTextStyleSuggestion(item);
-        } else if (type === 'variable' && item.suggestedVariable) {
-          suggestionSection = generateVariableSuggestion(item);
+        // Add library indicator for text styles
+        let libraryBadge = '';
+        if (type === 'text-style' && item.isFromLibrary) {
+          libraryBadge = `<div class="item-badge library">📚 Library</div>`;
         }
         
         // Generate font properties for text items
@@ -1331,81 +1478,108 @@
             </div>
           `;
         }
+
+        // Generate fix button or text style selector if there's a suggestion
+        let fixButton = '';
+        if (type === 'text-style' && item.availableTextStyles && item.availableTextStyles.length > 0) {
+          // Organize text styles: separate local and library styles
+          const localStyles = item.availableTextStyles.filter(style => !style.isFromLibrary);
+          const libraryStyles = item.availableTextStyles.filter(style => style.isFromLibrary);
+          
+          // Sort each group alphabetically
+          localStyles.sort((a, b) => a.name.localeCompare(b.name));
+          libraryStyles.sort((a, b) => a.name.localeCompare(b.name));
+          
+          // Generate dropdown options with grouping
+          let dropdownOptions = '';
+          
+          // Add local styles first
+          if (localStyles.length > 0) {
+            dropdownOptions += '<optgroup label="Local Styles">';
+            dropdownOptions += localStyles.map(style => {
+              const isSelected = item.suggestedTextStyleId === style.id ? 'selected' : '';
+              const fontInfo = style.fontFamily && style.fontSize ? ` • ${style.fontFamily} ${style.fontSize}px` : '';
+              return `<option value="${style.id}" ${isSelected}>${escapeHtml(style.name)}${fontInfo}</option>`;
+            }).join('');
+            dropdownOptions += '</optgroup>';
+          }
+          
+          // Add library styles grouped by library name
+          if (libraryStyles.length > 0) {
+            // Group library styles by library name
+            const stylesByLibrary = {};
+            libraryStyles.forEach(style => {
+              const libraryName = style.libraryName && style.libraryName !== 'Connected Library' 
+                ? style.libraryName 
+                : 'Connected Library';
+              
+              if (!stylesByLibrary[libraryName]) {
+                stylesByLibrary[libraryName] = [];
+              }
+              stylesByLibrary[libraryName].push(style);
+            });
+            
+            // Sort library names alphabetically
+            const sortedLibraryNames = Object.keys(stylesByLibrary).sort();
+            
+            // Create optgroups for each library
+            sortedLibraryNames.forEach(libraryName => {
+              dropdownOptions += `<optgroup label="📚 ${libraryName}">`;
+              dropdownOptions += stylesByLibrary[libraryName].map(style => {
+                const isSelected = item.suggestedTextStyleId === style.id ? 'selected' : '';
+                const fontInfo = style.fontFamily && style.fontSize ? ` • ${style.fontFamily} ${style.fontSize}px` : '';
+                return `<option value="${style.id}" ${isSelected}>${escapeHtml(style.name)}${fontInfo}</option>`;
+              }).join('');
+              dropdownOptions += '</optgroup>';
+            });
+          }
+          
+          fixButton = `
+            <div class="item-actions">
+              <div class="text-style-selector">
+                <select class="style-dropdown" id="style-dropdown-${item.id}" onchange="updateApplyButton('${item.id}'); event.stopPropagation();">
+                  <option value="">Select a style...</option>
+                  ${dropdownOptions}
+                </select>
+                <button class="apply-style-button" id="apply-button-${item.id}" 
+                        onclick="applySelectedTextStyle('${item.id}'); event.stopPropagation();"
+                        ${!item.suggestedTextStyleId ? 'disabled' : ''}>
+                  Apply
+                </button>
+              </div>
+            </div>
+          `;
+        } else if (type === 'variable' && item.suggestedVariable) {
+          fixButton = `
+            <div class="item-actions">
+              <button class="fix-button" onclick="applyColorVariable('${item.id}', '${item.suggestedVariableId}', '${item.property}'); event.stopPropagation();">
+                Fix
+              </button>
+            </div>
+          `;
+        }
         
         return `
           <div class="item" onclick="selectNode('${item.id}')">
             <div class="item-header">
               <div class="item-title">${escapeHtml(item.name)}</div>
-              <div class="item-badge">${item.type}</div>
-              ${matchBadge}
+              <div class="item-badges">
+                <div class="item-badge type">${item.type}</div>
+                ${libraryBadge}
+                ${matchBadge}
+              </div>
             </div>
             <div class="item-path">${escapeHtml(item.path)}</div>
-            ${item.characters ? `<div class="item-details">"${escapeHtml(item.characters)}"</div>` : ''}
             ${colorPreview}
             ${item.description ? `<div class="item-description">${escapeHtml(item.description)}</div>` : ''}
             ${fontProperties}
-            ${suggestionSection}
+            ${fixButton}
           </div>
         `;
       }).join('');
     }
 
-    function generateTextStyleSuggestion(item) {
-      const matchColors = {
-        'exact': '#4CAF50',
-        'partial': '#FF9800',
-        'fuzzy': '#2196F3'
-      };
-      
-      return `
-        <div class="suggestion-section">
-          <div class="suggestion-header">
-            <span class="suggestion-icon">💡</span>
-            <span class="suggestion-title">Apply Text Style</span>
-            <div class="item-badge" style="background: ${matchColors[item.matchType]}; color: white;">${item.matchType} match</div>
-          </div>
-          <div class="suggestion-content">
-            Apply the text style <strong>"${escapeHtml(item.suggestedTextStyle)}"</strong> to this text element.
-          </div>
-          <div class="suggestion-actions">
-            <button class="suggestion-button" onclick="applyTextStyle('${item.id}', '${item.suggestedTextStyleId}')">
-              Apply Style
-            </button>
-            <button class="suggestion-button reject" onclick="rejectSuggestion('${item.id}', 'text-style')">
-              Ignore
-            </button>
-          </div>
-        </div>
-      `;
-    }
 
-    function generateVariableSuggestion(item) {
-      const matchColors = {
-        'exact': '#4CAF50',
-        'similar': '#FF9800'
-      };
-      
-      return `
-        <div class="suggestion-section">
-          <div class="suggestion-header">
-            <span class="suggestion-icon">🎨</span>
-            <span class="suggestion-title">Use Color Variable</span>
-            <div class="item-badge" style="background: ${matchColors[item.matchType]}; color: white;">${item.matchType} match</div>
-          </div>
-          <div class="suggestion-content">
-            Replace this color with the variable <strong>"${escapeHtml(item.suggestedVariable)}"</strong>.
-          </div>
-          <div class="suggestion-actions">
-            <button class="suggestion-button" onclick="applyColorVariable('${item.id}', '${item.suggestedVariableId}', '${item.property}')">
-              Apply Variable
-            </button>
-            <button class="suggestion-button reject" onclick="rejectSuggestion('${item.id}', 'variable')">
-              Ignore
-            </button>
-          </div>
-        </div>
-      `;
-    }
 
 
 
@@ -1513,6 +1687,24 @@
       }, '*');
     }
 
+    // Handle dropdown selection for text styles
+    function updateApplyButton(nodeId) {
+      const dropdown = document.getElementById(`style-dropdown-${nodeId}`);
+      const applyButton = document.getElementById(`apply-button-${nodeId}`);
+      
+      if (dropdown && applyButton) {
+        applyButton.disabled = !dropdown.value;
+      }
+    }
+
+    function applySelectedTextStyle(nodeId) {
+      const dropdown = document.getElementById(`style-dropdown-${nodeId}`);
+      
+      if (dropdown && dropdown.value) {
+        applyTextStyle(nodeId, dropdown.value);
+      }
+    }
+
     function applyColorVariable(nodeId, variableId, propertyPath) {
       parent.postMessage({ 
         pluginMessage: { 
@@ -1525,12 +1717,6 @@
     }
 
 
-
-    function rejectSuggestion(nodeId, suggestionType) {
-      // For now, just show a notification
-      // In a future version, this could track rejected suggestions
-      showStatus(`Suggestion for ${suggestionType} ignored`, 'info');
-    }
 
     function triggerScan() {
       // Find the currently active scan tab
