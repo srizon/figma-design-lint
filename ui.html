@@ -68,10 +68,15 @@
       -moz-osx-font-smoothing: grayscale;
       width: 100%;
       height: 100%;
+      /* Disable text selection */
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
     }
 
     .app {
-      height: 100%;
+      height: 600px; /* Default height */
       display: flex;
       flex-direction: column;
       background: var(--bg-primary);
@@ -79,8 +84,11 @@
       max-width: 100vw;
       width: 375px; /* Default width */
       min-height: 400px;
+      max-height: 800px;
       margin: 0 auto;
-      transition: width 0.3s ease;
+      transition: width 0.3s ease, height 0.3s ease;
+      position: relative; /* Needed for absolute positioned resize handles */
+      overflow: hidden; /* Prevent scrollbars on the main container */
     }
 
     /* Responsive width adjustments */
@@ -113,9 +121,10 @@
       padding: 12px;
       overflow-y: auto;
       width: 100%;
-      height: 100%;
+      min-height: 0; /* Allow flex item to shrink below content size */
       display: flex;
       flex-direction: column;
+      height: 100%;
     }
 
     /* Responsive padding adjustments */
@@ -210,6 +219,11 @@
       min-width: 60px;
       font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
       flex: 1;
+      /* Re-enable text selection for input fields */
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
     }
 
     .input-field:focus {
@@ -253,6 +267,8 @@
       align-items: center;
       gap: 12px;
       margin-bottom: 8px;
+      flex-shrink: 0;
+      min-height: 32px;
     }
 
     .scan-button {
@@ -292,6 +308,9 @@
 
     /* Keep results tabs side by side on smaller screens */
     #results-tabs {
+      flex: none !important;
+      height: auto !important;
+      min-height: 32px;
       flex-wrap: nowrap;
       overflow-x: auto;
       scrollbar-width: none; /* Firefox */
@@ -321,6 +340,8 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      height: 28px;
+      box-sizing: border-box;
     }
 
     /* Ensure results tab buttons have minimum width */
@@ -452,6 +473,15 @@
     /* Results section - Figma style */
     .results-section {
       display: none;
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .results-section.show {
+      display: flex;
     }
 
     .results-header {
@@ -460,6 +490,7 @@
       justify-content: space-between;
       margin-bottom: 12px;
       gap: 12px;
+      flex-shrink: 0;
     }
 
     .results-title {
@@ -501,6 +532,21 @@
       flex: 1;
       overflow-y: auto;
       min-height: 0; /* Allow flex item to shrink below content size */
+    }
+
+    /* When item list contains only empty state, center it vertically */
+    .item-list .empty-state {
+      margin: auto;
+      align-self: center;
+      justify-self: center;
+    }
+
+    /* Make sure item lists can center their content when needed */
+    .item-list.centered {
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      min-height: 300px;
     }
 
     /* Redesigned item display - better space utilization */
@@ -693,6 +739,11 @@
       background-size: 12px;
       padding-right: 28px;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      /* Re-enable text selection for dropdowns */
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
     }
 
     .style-dropdown:focus {
@@ -954,8 +1005,10 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 200px;
+      min-height: 300px;
       flex: 1;
+      height: 100%;
+      width: 100%;
     }
 
     .empty-state-icon {
@@ -995,17 +1048,21 @@
       flex-direction: column;
       overflow: hidden;
       margin-top: 8px;
+      height: calc(100% - 40px); /* Subtract tab height and margin */
+      min-height: 0;
     }
 
     .tab-pane {
       display: none;
       flex: 1;
       overflow: hidden;
+      height: 100%;
     }
 
     .tab-pane.active {
       display: flex;
       flex-direction: column;
+      height: 100%;
     }
 
     /* Responsive tab content */
@@ -1070,8 +1127,8 @@
       margin: 12px 0;
     }
 
-    /* Resize handle for manual resizing */
-    .resize-handle {
+    /* Right resize handle for width resizing */
+    .resize-handle-right {
       position: absolute;
       right: 0;
       top: 0;
@@ -1082,12 +1139,36 @@
       z-index: 1000;
     }
 
-    .resize-handle:hover {
+    .resize-handle-right:hover {
       background: var(--accent-primary);
       opacity: 0.3;
     }
 
-    .resize-handle:active {
+    .resize-handle-right:active {
+      background: var(--accent-primary);
+      opacity: 0.5;
+    }
+
+
+
+    /* Bottom resize handle for height resizing */
+    .resize-handle-bottom {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 4px;
+      background: transparent;
+      cursor: ns-resize;
+      z-index: 1000;
+    }
+
+    .resize-handle-bottom:hover {
+      background: var(--accent-primary);
+      opacity: 0.3;
+    }
+
+    .resize-handle-bottom:active {
       background: var(--accent-primary);
       opacity: 0.5;
     }
@@ -1099,6 +1180,19 @@
       min-height: 0;
       align-items: center;
       justify-content: center;
+      height: 100%;
+      width: 100%;
+    }
+
+    /* Main empty state container */
+    #main-empty-state {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      width: 100%;
     }
 
     /* Responsive utilities - removed since we want all text visible */
@@ -1106,22 +1200,23 @@
 </head>
 <body>
   <div class="app">
-    <div class="resize-handle" id="resize-handle"></div>
+    <div class="resize-handle-right" id="resize-handle-right"></div>
+    <div class="resize-handle-bottom" id="resize-handle-bottom"></div>
     <main class="main-content scrollbar">
       <!-- Scan Options Section -->
       <div class="scan-controls">
-        <div class="tab-group" id="scan-tabs">
-          <button class="tab-button" onclick="scanSelection(event)">
+        <div class="tab-group" id="scan-tabs" role="tablist" aria-label="Scan scope selection">
+          <button class="tab-button" onclick="scanSelection(event)" role="tab" aria-selected="false" aria-controls="results-section" aria-label="Scan selected elements">
             <span>Selection</span>
           </button>
-          <button class="tab-button active" onclick="scanPage(event)">
+          <button class="tab-button active" onclick="scanPage(event)" role="tab" aria-selected="true" aria-controls="results-section" aria-label="Scan current page">
             <span>Page</span>
           </button>
-          <button class="tab-button" onclick="scanFile(event)">
+          <button class="tab-button" onclick="scanFile(event)" role="tab" aria-selected="false" aria-controls="results-section" aria-label="Scan entire file">
             <span>File</span>
           </button>
         </div>
-        <button class="button scan-button" onclick="triggerScan()">
+        <button class="button scan-button" onclick="triggerScan()" aria-label="Start scanning with selected scope">
           Scan
         </button>
       </div>
@@ -1141,30 +1236,30 @@
       <!-- Results Section -->
       <div id="results-section" class="results-section">
         <!-- Results Tabs -->
-        <div class="tab-group" id="results-tabs">
-          <button class="tab-button active" data-type="text-styles" onclick="showTab('text-styles', event)">
+        <div class="tab-group" id="results-tabs" role="tablist" aria-label="Results categories">
+          <button class="tab-button active" data-type="text-styles" onclick="showTab('text-styles', event)" role="tab" aria-selected="true" aria-controls="text-styles-tab" aria-label="View text style issues">
             <span>Text</span>
-            <span class="tab-count" id="text-styles-count">0</span>
+            <span class="tab-count" id="text-styles-count" aria-label="0 issues">0</span>
           </button>
-          <button class="tab-button" data-type="variables" onclick="showTab('variables', event)">
+          <button class="tab-button" data-type="variables" onclick="showTab('variables', event)" role="tab" aria-selected="false" aria-controls="variables-tab" aria-label="View variable issues">
             <span>Color</span>
-            <span class="tab-count" id="variables-count">0</span>
+            <span class="tab-count" id="variables-count" aria-label="0 issues">0</span>
           </button>
-          <button class="tab-button" data-type="layers" onclick="showTab('layers', event)">
+          <button class="tab-button" data-type="layers" onclick="showTab('layers', event)" role="tab" aria-selected="false" aria-controls="layers-tab" aria-label="View layer issues">
             <span>Layers</span>
-            <span class="tab-count" id="layers-count">0</span>
+            <span class="tab-count" id="layers-count" aria-label="0 issues">0</span>
           </button>
         </div>
 
         <div class="tab-content">
-          <div id="text-styles-tab" class="tab-pane active">
-            <div id="text-styles-list" class="item-list"></div>
+          <div id="text-styles-tab" class="tab-pane active" role="tabpanel" aria-labelledby="text-styles-button" tabindex="0">
+            <div id="text-styles-list" class="item-list" role="list" aria-label="Text style issues"></div>
           </div>
-          <div id="variables-tab" class="tab-pane">
-            <div id="variables-list" class="item-list"></div>
+          <div id="variables-tab" class="tab-pane" role="tabpanel" aria-labelledby="variables-button" tabindex="0">
+            <div id="variables-list" class="item-list" role="list" aria-label="Variable issues"></div>
           </div>
-          <div id="layers-tab" class="tab-pane">
-            <div id="layers-list" class="item-list"></div>
+          <div id="layers-tab" class="tab-pane" role="tabpanel" aria-labelledby="layers-button" tabindex="0">
+            <div id="layers-list" class="item-list" role="list" aria-label="Layer issues"></div>
           </div>
         </div>
       </div>
@@ -1175,7 +1270,10 @@
     let currentResults = null;
     let isResizing = false;
     let startX = 0;
+    let startY = 0;
     let startWidth = 0;
+    let startHeight = 0;
+    let resizeDirection = null; // 'width-right', 'height-bottom'
 
     // Initialize plugin
     window.onload = function() {
@@ -1195,7 +1293,7 @@
         // Update active state for page tab (scan tabs, second button)
         document.querySelectorAll('#scan-tabs .tab-button').forEach(btn => btn.classList.remove('active'));
         document.querySelector('#scan-tabs .tab-button:nth-child(2)').classList.add('active');
-        showLoading();
+        showLoading('page');
         parent.postMessage({ pluginMessage: { type: 'scan-page' } }, '*');
       }, 500);
 
@@ -1206,11 +1304,14 @@
 
     // Set up manual resize functionality
     function setupManualResize() {
-      const resizeHandle = document.getElementById('resize-handle');
+      const resizeHandleRight = document.getElementById('resize-handle-right');
+      const resizeHandleBottom = document.getElementById('resize-handle-bottom');
       const app = document.querySelector('.app');
       
-      resizeHandle.addEventListener('mousedown', function(e) {
+      // Width resizing (right edge)
+      resizeHandleRight.addEventListener('mousedown', function(e) {
         isResizing = true;
+        resizeDirection = 'width-right';
         startX = e.clientX;
         startWidth = app.offsetWidth;
         
@@ -1220,29 +1321,63 @@
         e.preventDefault();
       });
       
+
+      
+      // Height resizing (bottom edge)
+      resizeHandleBottom.addEventListener('mousedown', function(e) {
+        isResizing = true;
+        resizeDirection = 'height-bottom';
+        startY = e.clientY;
+        startHeight = app.offsetHeight;
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        
+        e.preventDefault();
+      });
+      
       function handleMouseMove(e) {
-        if (!isResizing) return;
-        
-        const deltaX = e.clientX - startX;
-        const newWidth = Math.max(375, Math.min(800, startWidth + deltaX));
-        
-        // Update the app container width
-        app.style.width = newWidth + 'px';
-        app.style.transition = 'none';
-        
-        // Send resize message to plugin
-        parent.postMessage({ 
-          pluginMessage: { 
-            type: 'resize-window', 
-            width: newWidth, 
-            height: 600 
-          } 
-        }, '*');
+        if (resizeDirection === 'width-right' && isResizing) {
+          const deltaX = e.clientX - startX;
+          const newWidth = Math.max(375, Math.min(800, startWidth + deltaX));
+          
+          // Update the app container width (right edge drag keeps left edge fixed)
+          app.style.width = newWidth + 'px';
+          app.style.transition = 'none';
+          
+          // Send resize message to plugin
+          parent.postMessage({ 
+            pluginMessage: { 
+              type: 'resize-window', 
+              width: newWidth, 
+              height: app.offsetHeight 
+            } 
+                    }, '*');
+        } else if (resizeDirection === 'height-bottom' && isResizing) {
+          const deltaY = e.clientY - startY;
+          const newHeight = Math.max(400, Math.min(800, startHeight + deltaY)); // Add deltaY for bottom edge
+          
+          // Update the app container height (bottom edge drag keeps top edge fixed)
+          app.style.height = newHeight + 'px';
+          app.style.transition = 'none';
+          
+          // Send resize message to plugin
+          parent.postMessage({ 
+            pluginMessage: { 
+              type: 'resize-window', 
+              width: app.offsetWidth, 
+              height: newHeight 
+            } 
+          }, '*');
+        }
       }
       
       function handleMouseUp() {
         isResizing = false;
-        app.style.transition = 'width 0.3s ease';
+        resizeDirection = null;
+        
+        // Restore smooth transitions
+        app.style.transition = 'width 0.3s ease, height 0.3s ease';
         
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
@@ -1301,14 +1436,28 @@
         hideLoading();
         currentResults = msg.results;
         displayResults(msg.results);
+        
+        // Show appropriate status message
+        if (msg.results.summary.isEmpty) {
+          hideStatus(); // Don't show status for empty areas, the empty state is clear enough
+        } else if (msg.results.summary.totalDetached === 0) {
+          showStatus('Analysis complete - no design system issues found', 'success');
+        }
       }
       
       else if (msg.type === 'scan-error') {
         console.log('UI: Received scan error:', msg.error);
         hideLoading();
-        showStatus('Scan failed: ' + msg.error, 'error');
-        // Show empty results
+        showStatus(msg.error, 'error');
+        // Show empty results but with error state
         displayResults(getEmptyResults());
+        
+        // Show helpful tips based on error type
+        if (msg.error.includes('timeout')) {
+          showErrorTips('timeout');
+        } else if (msg.error.includes('memory')) {
+          showErrorTips('memory');
+        }
       }
       
       else if (msg.type === 'no-selection') {
@@ -1321,27 +1470,42 @@
     function scanSelection(event) {
       console.log('UI: Sending scan-selection message');
       // Update active state for scan tabs only
-      document.querySelectorAll('#scan-tabs .tab-button').forEach(btn => btn.classList.remove('active'));
-      event.target.closest('.tab-button').classList.add('active');
-      showLoading();
+      document.querySelectorAll('#scan-tabs .tab-button').forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+      });
+      const activeTab = event.target.closest('.tab-button');
+      activeTab.classList.add('active');
+      activeTab.setAttribute('aria-selected', 'true');
+      showLoading('selection');
       parent.postMessage({ pluginMessage: { type: 'scan-selection' } }, '*');
     }
 
     function scanPage(event) {
       console.log('UI: Sending scan-page message');
       // Update active state for scan tabs only
-      document.querySelectorAll('#scan-tabs .tab-button').forEach(btn => btn.classList.remove('active'));
-      event.target.closest('.tab-button').classList.add('active');
-      showLoading();
+      document.querySelectorAll('#scan-tabs .tab-button').forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+      });
+      const activeTab = event.target.closest('.tab-button');
+      activeTab.classList.add('active');
+      activeTab.setAttribute('aria-selected', 'true');
+      showLoading('page');
       parent.postMessage({ pluginMessage: { type: 'scan-page' } }, '*');
     }
 
     function scanFile(event) {
       console.log('UI: Sending scan-file message');
       // Update active state for scan tabs only
-      document.querySelectorAll('#scan-tabs .tab-button').forEach(btn => btn.classList.remove('active'));
-      event.target.closest('.tab-button').classList.add('active');
-      showLoading();
+      document.querySelectorAll('#scan-tabs .tab-button').forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+      });
+      const activeTab = event.target.closest('.tab-button');
+      activeTab.classList.add('active');
+      activeTab.setAttribute('aria-selected', 'true');
+      showLoading('file');
       parent.postMessage({ pluginMessage: { type: 'scan-file' } }, '*');
     }
 
@@ -1354,15 +1518,59 @@
       }
     }
 
-    function showLoading() {
-      // Hide selection empty state if it's showing
+    function showLoading(scanType) {
+      // Hide all empty states if they're showing
       const selectionEmptyState = document.getElementById('selection-empty-state');
+      const mainEmptyState = document.getElementById('main-empty-state');
+      
       if (selectionEmptyState) {
         selectionEmptyState.style.display = 'none';
       }
+      if (mainEmptyState) {
+        mainEmptyState.style.display = 'none';
+      }
+      
+      // Update loading text based on scan type
+      const loadingText = document.querySelector('.loading-text');
+      if (scanType) {
+        switch(scanType) {
+          case 'selection':
+            loadingText.textContent = 'Analyzing selected elements...';
+            break;
+          case 'page':
+            loadingText.textContent = 'Analyzing current page...';
+            break;
+          case 'file':
+            loadingText.textContent = 'Analyzing entire file...';
+            break;
+          default:
+            loadingText.textContent = 'Analyzing design system...';
+        }
+      } else {
+        // Fallback: try to determine from active tab
+        const activeScanTab = document.querySelector('#scan-tabs .tab-button.active');
+        if (activeScanTab) {
+          const tabText = activeScanTab.textContent.trim().toLowerCase();
+          switch(tabText) {
+            case 'selection':
+              loadingText.textContent = 'Analyzing selected elements...';
+              break;
+            case 'page':
+              loadingText.textContent = 'Analyzing current page...';
+              break;
+            case 'file':
+              loadingText.textContent = 'Analyzing entire file...';
+              break;
+            default:
+              loadingText.textContent = 'Analyzing design system...';
+          }
+        } else {
+          loadingText.textContent = 'Analyzing design system...';
+        }
+      }
       
       document.getElementById('loading-state').style.display = 'block';
-      document.getElementById('results-section').style.display = 'none';
+      document.getElementById('results-section').classList.remove('show');
       hideStatus();
     }
 
@@ -1400,9 +1608,38 @@
       document.getElementById('status-banner').style.display = 'none';
     }
 
+    function showErrorTips(errorType) {
+      let tips = '';
+      
+      if (errorType === 'timeout') {
+        tips = `
+          <div style="margin-top: 8px; padding: 8px; background: var(--bg-tertiary); border-radius: 4px; font-size: 11px; color: var(--text-secondary);">
+            <strong>💡 Tips to fix timeout issues:</strong><br>
+            • Try scanning "Selection" instead of entire page/file<br>
+            • Scan individual pages rather than the whole file<br>
+            • Consider simplifying complex component structures
+          </div>
+        `;
+      } else if (errorType === 'memory') {
+        tips = `
+          <div style="margin-top: 8px; padding: 8px; background: var(--bg-tertiary); border-radius: 4px; font-size: 11px; color: var(--text-secondary);">
+            <strong>💡 Tips to fix memory issues:</strong><br>
+            • Scan pages individually instead of the whole file<br>
+            • Select smaller groups of elements to scan<br>
+            • Consider organizing your file into smaller pages
+          </div>
+        `;
+      }
+      
+      if (tips) {
+        const banner = document.getElementById('status-banner');
+        banner.innerHTML += tips;
+      }
+    }
+
     function showSelectionEmptyState() {
       // Hide results section and show empty state in main content
-      document.getElementById('results-section').style.display = 'none';
+      document.getElementById('results-section').classList.remove('show');
       hideStatus();
       
       // Create and show selection empty state
@@ -1416,7 +1653,7 @@
           <div class="empty-state">
             <div class="empty-state-icon">🎯</div>
             <h3>Select elements to analyze</h3>
-            <p>Choose any frames, components, or text layers in your Figma file, then click "Selection" to discover design system opportunities.</p>
+            <p>Choose any frames, components, or text layers in your Figma file, then click "Selection" to scan for design system opportunities.</p>
           </div>
         `;
         mainContent.appendChild(emptyStateContainer);
@@ -1425,11 +1662,97 @@
       emptyStateContainer.style.display = 'block';
     }
 
+    function showMainEmptyState(isEmpty = false) {
+      // Hide results section and show empty state in main content
+      document.getElementById('results-section').classList.remove('show');
+      
+      // Create and show main empty state
+      const mainContent = document.querySelector('.main-content');
+      let emptyStateContainer = document.getElementById('main-empty-state');
+      
+      // Always recreate the container to ensure updated messaging
+      if (emptyStateContainer) {
+        emptyStateContainer.remove();
+      }
+      
+      emptyStateContainer = document.createElement('div');
+      emptyStateContainer.id = 'main-empty-state';
+      
+      // Get the current active scan tab to show appropriate message
+      const activeScanTab = document.querySelector('#scan-tabs .tab-button.active');
+      const scanType = activeScanTab ? activeScanTab.textContent.trim().toLowerCase() : 'page';
+      
+      let icon, title, description;
+      
+      if (isEmpty) {
+        // Messages for empty/blank areas
+        if (scanType === 'selection') {
+          icon = '🔍';
+          title = 'No elements selected';
+          description = 'Select some frames, components, or other elements to analyze for design system opportunities.';
+        } else if (scanType === 'page') {
+          icon = '📄';
+          title = 'This page appears to be empty';
+          description = 'There are no design elements on this page to analyze. Try scanning a different page or add some content first.';
+        } else if (scanType === 'file') {
+          icon = '📁';
+          title = 'This file appears to be empty';
+          description = 'There are no design elements in this file to analyze. Try creating some content first.';
+        } else {
+          icon = '🔍';
+          title = 'No elements found';
+          description = 'There are no design elements to analyze in the selected area.';
+        }
+      } else {
+        // Messages for areas with elements but no issues
+        if (scanType === 'selection') {
+          icon = '✨';
+          title = 'No issues found in selection';
+          description = 'Your selected elements are using consistent styling. Great work!';
+        } else if (scanType === 'page') {
+          icon = '✨';
+          title = 'No issues found on this page';
+          description = 'All elements on this page are using consistent design patterns. Excellent!';
+        } else if (scanType === 'file') {
+          icon = '✨';
+          title = 'No issues found in this file';
+          description = 'All elements in this file are using consistent design patterns. Excellent!';
+        } else {
+          icon = '✨';
+          title = 'No issues found';
+          description = 'All elements are using consistent design patterns. Excellent!';
+        }
+      }
+      
+      emptyStateContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">${icon}</div>
+          <h3>${title}</h3>
+          <p>${description}</p>
+        </div>
+      `;
+      mainContent.appendChild(emptyStateContainer);
+      emptyStateContainer.style.display = 'block';
+    }
+
     function displayResults(results) {
-      // Hide selection empty state if it's showing
+      // Hide all empty states if they're showing
       const selectionEmptyState = document.getElementById('selection-empty-state');
+      const mainEmptyState = document.getElementById('main-empty-state');
+      
       if (selectionEmptyState) {
         selectionEmptyState.style.display = 'none';
+      }
+      if (mainEmptyState) {
+        mainEmptyState.style.display = 'none';
+      }
+      
+      // Check if there are any results at all
+      if (results.summary.totalDetached === 0) {
+        // Show empty state instead of results section
+        document.getElementById('results-section').classList.remove('show');
+        showMainEmptyState(results.summary.isEmpty || false);
+        return;
       }
       
       // Update summary counts in tab buttons
@@ -1439,12 +1762,15 @@
       
       textStylesCount.textContent = results.summary.textStyles;
       textStylesCount.setAttribute('data-count', results.summary.textStyles);
+      textStylesCount.setAttribute('aria-label', `${results.summary.textStyles} issues`);
       
       variablesCount.textContent = results.summary.variables;
       variablesCount.setAttribute('data-count', results.summary.variables);
+      variablesCount.setAttribute('aria-label', `${results.summary.variables} issues`);
       
       layersCount.textContent = results.summary.layers;
       layersCount.setAttribute('data-count', results.summary.layers);
+      layersCount.setAttribute('aria-label', `${results.summary.layers} issues`);
 
       // Display text styles
       displayList('text-styles-list', results.detachedTextStyles, 'text-style');
@@ -1456,20 +1782,19 @@
       displayList('layers-list', results.detachedLayers, 'layer');
 
       // Show results
-      document.getElementById('results-section').style.display = 'block';
+      const resultsSection = document.getElementById('results-section');
+      resultsSection.classList.add('show');
 
       // Show status
-      if (results.summary.totalDetached === 0) {
-        showStatus('Yey! No issues found on this one!', 'success');
-      } else {
-        showStatus(`Found ${results.summary.totalDetached} detached elements`, 'warning');
-      }
+      showStatus(`Found ${results.summary.totalDetached} design system opportunities`, 'warning');
     }
 
     function displayList(containerId, items, type) {
       const container = document.getElementById(containerId);
       
       if (items.length === 0) {
+        // Add centered class for vertical centering
+        container.classList.add('centered');
         container.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">✨</div>
@@ -1483,6 +1808,9 @@
         `;
         return;
       }
+
+      // Remove centered class when displaying items
+      container.classList.remove('centered');
 
       container.innerHTML = items.map(item => {
         let matchBadge = '';
@@ -1612,16 +1940,18 @@
         }
         
         return `
-          <div class="item" onclick="selectNode('${item.id}')">
+          <div class="item" onclick="selectNode('${item.id}')" role="listitem" tabindex="0" 
+               aria-label="${type === 'text-style' ? 'Text element' : type === 'variable' ? 'Element with color' : 'Layer element'}: ${escapeHtml(item.name)}" 
+               onkeydown="if(event.key==='Enter'||event.key===' '){selectNode('${item.id}');event.preventDefault();}">
             <div class="item-header">
               <div class="item-title">${escapeHtml(item.name)}</div>
               <div class="item-badges">
-                <div class="item-badge type">${item.type}</div>
+                <div class="item-badge type" aria-label="Element type: ${item.type}">${item.type}</div>
                 ${libraryBadge}
                 ${matchBadge}
               </div>
             </div>
-            <div class="item-path">${escapeHtml(item.path)}</div>
+            <div class="item-path" aria-label="Location: ${escapeHtml(item.path)}">${escapeHtml(item.path)}</div>
             ${colorPreview}
             ${item.description ? `<div class="item-description">${escapeHtml(item.description)}</div>` : ''}
             ${fontProperties}
@@ -1681,11 +2011,17 @@
       // Remove active class from only the results tab buttons (not scan tabs)
       document.querySelectorAll('#results-tabs .tab-button').forEach(tab => {
         tab.classList.remove('active');
+        tab.setAttribute('aria-selected', 'false');
       });
 
       // Show selected tab
       document.getElementById(`${tabName}-tab`).classList.add('active');
-      event.target.closest('.tab-button').classList.add('active');
+      const activeTab = event.target.closest('.tab-button');
+      activeTab.classList.add('active');
+      activeTab.setAttribute('aria-selected', 'true');
+      
+      // Focus the tab panel for screen readers
+      document.getElementById(`${tabName}-tab`).focus();
     }
 
     // Ensure at least one results tab is always selected
@@ -1797,10 +2133,13 @@
       const tabText = activeScanTab.textContent.trim().toLowerCase();
       
       if (tabText === 'selection') {
+        showLoading('selection');
         scanSelection({ target: activeScanTab });
       } else if (tabText === 'page') {
+        showLoading('page');
         scanPage({ target: activeScanTab });
       } else if (tabText === 'file') {
+        showLoading('file');
         scanFile({ target: activeScanTab });
       }
     }
@@ -1815,7 +2154,8 @@
           totalDetached: 0,
           textStyles: 0,
           variables: 0,
-          layers: 0
+          layers: 0,
+          isEmpty: false
         }
       };
     }

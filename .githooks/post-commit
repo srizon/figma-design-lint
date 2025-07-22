@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# Post-commit hook for creating version tags
+# This hook runs after each commit and creates a git tag for the new version
+
+echo "🏷️  Creating version tag..."
+
+# Check if we're in the right directory and have the versioning script
+if [ ! -f "package.json" ]; then
+  echo "⚠️  package.json not found, skipping tag creation"
+  exit 0
+fi
+
+# Check if Node.js is available
+if ! command -v node >/dev/null 2>&1; then
+  echo "⚠️  Node.js not found, skipping tag creation"
+  exit 0
+fi
+
+# Get the current version from package.json
+VERSION=$(node -e "console.log(require('./package.json').version)")
+
+if [ ! -z "$VERSION" ]; then
+  # Check if tag already exists
+  if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+    echo "🏷️  Tag v$VERSION already exists"
+  else
+    # Create the tag
+    git tag -a "v$VERSION" -m "Version $VERSION"
+    echo "✅ Created tag v$VERSION"
+  fi
+else
+  echo "⚠️  Could not determine version, skipping tag creation"
+fi 

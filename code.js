@@ -54,10 +54,10 @@ async function getAvailableTextStyles() {
   const seenStyleIds = new Set();
   
   try {
-    // Add timeout to prevent hanging
+    // Add timeout to prevent hanging - increased from 10 to 30 seconds
     const styleDiscoveryPromise = discoverTextStyles(allTextStyles, seenStyleIds);
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Text style discovery timeout')), 10000) // 10 second timeout
+      setTimeout(() => reject(new Error('Text style discovery timeout')), 30000) // 30 second timeout
     );
     
     await Promise.race([styleDiscoveryPromise, timeoutPromise]);
@@ -148,8 +148,8 @@ async function discoverTextStyles(allTextStyles, seenStyleIds) {
     const allInstances = figma.root.findAll(node => node.type === 'INSTANCE');
     console.log('Checking', allInstances.length, 'component instances for library styles...');
     
-    // Limit to prevent hanging on large files
-    const instancesToCheck = allInstances.slice(0, 50); // Only check first 50 instances
+    // Limit to prevent hanging on large files - increased limit but still capped
+    const instancesToCheck = allInstances.slice(0, 100); // Only check first 100 instances
     
     for (const instance of instancesToCheck) {
       try {
@@ -183,10 +183,10 @@ async function getAvailableColorVariables() {
   const seenVariableIds = new Set();
   
   try {
-    // Add timeout to prevent hanging
+    // Add timeout to prevent hanging - increased from 5 to 20 seconds
     const variableDiscoveryPromise = discoverColorVariables(allColorVariables, seenVariableIds);
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Color variable discovery timeout')), 5000) // 5 second timeout
+      setTimeout(() => reject(new Error('Color variable discovery timeout')), 20000) // 20 second timeout
     );
     
     await Promise.race([variableDiscoveryPromise, timeoutPromise]);
@@ -609,24 +609,52 @@ async function scanForDetachedElements(nodes) {
   resetResults();
   
   if (!nodes || nodes.length === 0) {
-    figma.notify('No nodes selected. Please select frames or components to scan.');
-    return;
+    console.log('scanForDetachedElements: No nodes to scan, returning empty results');
+    figma.notify('No elements found to scan. This appears to be empty.');
+    return {
+      detachedTextStyles: [],
+      detachedVariables: [],
+      detachedLayers: [],
+      summary: {
+        totalDetached: 0,
+        textStyles: 0,
+        variables: 0,
+        layers: 0,
+        isEmpty: true  // Flag to indicate this is an empty scan
+      }
+    };
   }
 
   console.log('Starting scan with', nodes.length, 'nodes');
   
+  // Warn about large scans
+  if (nodes.length > 50) {
+    console.log('Warning: Large scan detected with', nodes.length, 'top-level nodes');
+    figma.notify('Scanning large number of elements - this may take a while...');
+  }
+  
   try {
-    // Add timeout to prevent hanging
+    // Add timeout to prevent hanging - increased to 60 seconds for large files
     const scanPromise = performScan(nodes);
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Scan timeout')), 30000) // 30 second timeout
+      setTimeout(() => reject(new Error('Scan timeout - try scanning smaller sections')), 60000) // 60 second timeout
     );
     
     await Promise.race([scanPromise, timeoutPromise]);
     
   } catch (error) {
     console.error('Scan error:', error);
-    figma.notify('Scan failed: ' + error.message);
+    let errorMessage = 'Scan failed: ' + error.message;
+    
+    if (error.message.includes('timeout')) {
+      errorMessage = 'Scan timed out. Try scanning smaller sections or individual pages.';
+    } else if (error.message.includes('memory')) {
+      errorMessage = 'File too large to scan completely. Try scanning individual pages.';
+    }
+    
+    figma.notify(errorMessage);
+    figma.ui.postMessage({ type: 'scan-error', error: errorMessage });
+    
     // Return empty results to prevent UI from hanging
     return {
       detachedTextStyles: [],
@@ -651,21 +679,40 @@ async function performScan(nodes) {
   // Track node types we find
   const nodeTypes = {};
   
-  for (let index = 0; index < nodes.length; index++) {
-    const node = nodes[index];
-    console.log(`Processing node ${index + 1}/${nodes.length}:`, node.name, '(', node.type, ')');
-    nodeTypes[node.type] = (nodeTypes[node.type] || 0) + 1;
+  // Process nodes in batches to prevent hanging
+  const batchSize = 10;
+  const totalNodes = nodes.length;
+  
+  for (let i = 0; i < totalNodes; i += batchSize) {
+    const batch = nodes.slice(i, Math.min(i + batchSize, totalNodes));
+    console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(totalNodes / batchSize)} (nodes ${i + 1}-${Math.min(i + batchSize, totalNodes)} of ${totalNodes})`);
     
-    try {
-      await traverseNode(node);
-    } catch (error) {
-      console.error(`Error processing node ${node.name}:`, error);
-      // Continue with next node instead of failing completely
-      continue;
+    for (let j = 0; j < batch.length; j++) {
+      const node = batch[j];
+      const nodeIndex = i + j;
+      console.log(`Processing node ${nodeIndex + 1}/${totalNodes}:`, node.name, '(', node.type, ')');
+      nodeTypes[node.type] = (nodeTypes[node.type] || 0) + 1;
+      
+      try {
+        await traverseNode(node);
+      } catch (error) {
+        console.error(`Error processing node ${node.name}:`, error);
+        // Continue with next node instead of failing completely
+        continue;
+      }
+    }
+    
+    // Add a small delay between batches to prevent UI freezing
+    if (i + batchSize < totalNodes) {
+      await new Promise(resolve => setTimeout(resolve, 10));
     }
   }
 
   console.log('Node types found:', nodeTypes);
+  console.log('Scan results after traversal:');
+  console.log('- Text styles:', scanResults.detachedTextStyles.length);
+  console.log('- Variables:', scanResults.detachedVariables.length); 
+  console.log('- Layers:', scanResults.detachedLayers.length);
 }
 
 // Reset scan results
@@ -689,17 +736,23 @@ function resetResults() {
   colorVariablesCacheTimestamp = 0;
 }
 
-// Traverse through all nodes recursively
-async function traverseNode(node) {
+// Traverse through all nodes recursively with depth limit
+async function traverseNode(node, depth = 0) {
+  // Limit recursion depth to prevent stack overflow
+  if (depth > 20) {
+    console.log('Max depth reached for node:', node.name);
+    return;
+  }
+  
   try {
-    console.log('Traversing node:', node.name, 'Type:', node.type, 'ID:', node.id);
+    console.log('Traversing node:', node.name, 'Type:', node.type, 'ID:', node.id, 'Depth:', depth);
 
     // Enhanced text style detection with suggestions
     if (node.type === 'TEXT') {
-      console.log('Found TEXT:', node.name, 'Text style ID:', node.textStyleId);
-      // Check if text has no style applied
-      if (node.textStyleId === '') {
-        console.log('Detected text without style:', node.name);
+      console.log('Found TEXT:', node.name, 'Text style ID:', node.textStyleId, 'Characters:', node.characters.substring(0, 20));
+      // Check if text has no style applied or is using mixed styling
+      if (node.textStyleId === '' || node.textStyleId === figma.mixed) {
+        console.log('Detected text without style or with mixed styling:', node.name);
         
         // Find matching text styles
         const textStyleMatches = await findMatchingTextStyles(node);
@@ -768,15 +821,17 @@ async function traverseNode(node) {
       
       // Check fills
       if (node.fills && Array.isArray(node.fills)) {
-        console.log('Checking fills for node:', node.name, 'Fills:', node.fills);
+        console.log('Checking fills for node:', node.name, 'Fills count:', node.fills.length);
         for (let index = 0; index < node.fills.length; index++) {
           const fill = node.fills[index];
-          if (fill.type === 'SOLID' && fill.color) {
+          console.log(`  Fill ${index}:`, fill.type, fill.visible !== false ? 'visible' : 'hidden');
+          if (fill.type === 'SOLID' && fill.color && fill.visible !== false) {
             // Check if this fill is already using a variable
             const isUsingVariable = node.boundVariables && 
                                    node.boundVariables.fills && 
                                    node.boundVariables.fills[index];
             
+            console.log(`  Fill ${index} using variable:`, !!isUsingVariable);
             if (!isUsingVariable) {
               // Create color string with proper hex formatting
               const r = Math.round(fill.color.r * 255);
@@ -926,7 +981,8 @@ async function traverseNode(node) {
     // Only flag elements that are NOT inside components
     if (node.type === 'VECTOR' || node.type === 'BOOLEAN_OPERATION' || node.type === 'LINE') {
       console.log('Found custom shape:', node.name, 'Type:', node.type, 'Is inside component:', isInsideComponent(node));
-      if (!isInsideComponent(node) && couldBeComponent(node)) {
+      // Be less restrictive - show custom shapes that aren't in components regardless of other criteria
+      if (!isInsideComponent(node)) {
         console.log('Detected custom shape outside component:', node.name);
         scanResults.detachedLayers.push({
           id: node.id,
@@ -1021,10 +1077,20 @@ async function traverseNode(node) {
     console.log('Checking children for node:', node.name, 'Type:', node.type, 'Has children property:', 'children' in node);
     if ('children' in node && node.children && node.children.length > 0) {
       console.log('Node', node.name, 'has', node.children.length, 'children, traversing...');
-      for (let index = 0; index < node.children.length; index++) {
-        const child = node.children[index];
-        console.log(`  Traversing child ${index + 1}/${node.children.length}:`, child.name, '(', child.type, ')');
-        await traverseNode(child);
+      
+      // Limit children processing for very large groups
+      const maxChildren = 100;
+      const childrenToProcess = node.children.length > maxChildren ? 
+        node.children.slice(0, maxChildren) : node.children;
+      
+      if (node.children.length > maxChildren) {
+        console.log(`Limiting children processing to first ${maxChildren} of ${node.children.length} children for performance`);
+      }
+      
+      for (let index = 0; index < childrenToProcess.length; index++) {
+        const child = childrenToProcess[index];
+        console.log(`  Traversing child ${index + 1}/${childrenToProcess.length}:`, child.name, '(', child.type, ')');
+        await traverseNode(child, depth + 1);
       }
     } else {
       console.log('Node', node.name, 'has no children or children property. Children:', node.children);
@@ -1141,7 +1207,7 @@ async function refreshCurrentScan() {
         return;
     }
     
-    figma.ui.postMessage({ type: 'scan-results', results });
+    figma.ui.postMessage({ type: 'scan-results', results: serializeScanResults(results) });
   } catch (error) {
     console.error('Error refreshing scan:', error);
     figma.notify('Error refreshing scan results');
@@ -1169,7 +1235,7 @@ figma.ui.onmessage = async (msg) => {
       
       try {
         const results = await scanForDetachedElements(selection);
-        figma.ui.postMessage({ type: 'scan-results', results });
+        figma.ui.postMessage({ type: 'scan-results', results: serializeScanResults(results) });
       } catch (error) {
         console.error('Selection scan failed:', error);
         figma.notify('Selection scan failed: ' + error.message);
@@ -1181,13 +1247,15 @@ figma.ui.onmessage = async (msg) => {
       console.log('Scanning page...');
       const pageNodes = figma.currentPage.children;
       console.log('Page nodes count:', pageNodes.length);
+      console.log('Page node types:', pageNodes.map(n => `${n.name} (${n.type})`));
       
       // Update current scan scope
       currentScanScope = 'page';
       
       try {
         const results = await scanForDetachedElements(pageNodes);
-        figma.ui.postMessage({ type: 'scan-results', results });
+        console.log('Page scan results:', results);
+        figma.ui.postMessage({ type: 'scan-results', results: serializeScanResults(results) });
       } catch (error) {
         console.error('Page scan failed:', error);
         figma.notify('Page scan failed: ' + error.message);
@@ -1201,17 +1269,20 @@ figma.ui.onmessage = async (msg) => {
       let allNodes = [];
       
       allPages.forEach(page => {
+        console.log(`Page: ${page.name} has ${page.children.length} children`);
         allNodes = allNodes.concat(page.children);
       });
       
       console.log('Total nodes count:', allNodes.length);
+      console.log('File node types:', allNodes.map(n => `${n.name} (${n.type})`));
       
       // Update current scan scope
       currentScanScope = 'file';
       
       try {
         const results = await scanForDetachedElements(allNodes);
-        figma.ui.postMessage({ type: 'scan-results', results });
+        console.log('File scan results:', results);
+        figma.ui.postMessage({ type: 'scan-results', results: serializeScanResults(results) });
       } catch (error) {
         console.error('File scan failed:', error);
         figma.notify('File scan failed: ' + error.message);
@@ -1223,11 +1294,44 @@ figma.ui.onmessage = async (msg) => {
       try {
         const node = figma.getNodeById(msg.nodeId);
         if (node) {
-          figma.currentPage.selection = [node];
-          figma.viewport.scrollAndZoomIntoView([node]);
-          figma.notify(`Selected: ${node.name}`);
+          // Find which page the node is on
+          let targetPage = null;
+          let current = node;
+          
+          // Traverse up the node tree to find the page
+          while (current && current.type !== 'PAGE') {
+            current = current.parent;
+          }
+          
+          if (current && current.type === 'PAGE') {
+            targetPage = current;
+          }
+          
+          // If we found the target page and it's different from current page, navigate to it
+          if (targetPage && targetPage.id !== figma.currentPage.id) {
+            figma.currentPage = targetPage;
+            figma.notify(`Navigated to page: ${targetPage.name}`);
+            // Small delay to ensure page navigation completes
+            setTimeout(() => {
+              try {
+                figma.currentPage.selection = [node];
+                figma.viewport.scrollAndZoomIntoView([node]);
+                figma.notify(`Selected: ${node.name}`);
+              } catch (error) {
+                figma.notify('Could not select node after navigation');
+              }
+            }, 100);
+          } else {
+            // Node is on current page, select it directly
+            figma.currentPage.selection = [node];
+            figma.viewport.scrollAndZoomIntoView([node]);
+            figma.notify(`Selected: ${node.name}`);
+          }
+        } else {
+          figma.notify('Node not found');
         }
       } catch (error) {
+        console.error('Error selecting node:', error);
         figma.notify('Could not select node');
       }
     }
@@ -1335,7 +1439,147 @@ function getEmptyResults() {
       totalDetached: 0,
       textStyles: 0,
       variables: 0,
-      layers: 0
+      layers: 0,
+      isEmpty: false  // Default to false since this is used for errors, not empty pages
+    }
+  };
+}
+
+// Helper function to serialize scan results for postMessage
+function serializeScanResults(results) {
+  // Handle case where results is undefined/null (e.g., from empty page scan)
+  if (!results) {
+    console.log('serializeScanResults: results is undefined, returning empty results');
+    return getEmptyResults();
+  }
+  
+  // Ensure all required properties exist with defaults
+  const safeResults = {
+    detachedTextStyles: results.detachedTextStyles || [],
+    detachedVariables: results.detachedVariables || [],
+    detachedLayers: results.detachedLayers || [],
+    summary: results.summary || { totalDetached: 0, textStyles: 0, variables: 0, layers: 0, isEmpty: false }
+  };
+  
+  return {
+    detachedTextStyles: safeResults.detachedTextStyles.map(item => serializeTextStyleItem(item)),
+    detachedVariables: safeResults.detachedVariables.map(item => serializeVariableItem(item)),
+    detachedLayers: safeResults.detachedLayers.map(item => serializeLayerItem(item)),
+    summary: safeResults.summary
+  };
+}
+
+// Serialize text style items to remove non-serializable objects
+function serializeTextStyleItem(item) {
+  return {
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    path: item.path,
+    characters: item.characters,
+    description: item.description,
+    // Convert Figma objects to plain objects
+    fontName: item.fontName ? {
+      family: item.fontName.family,
+      style: item.fontName.style
+    } : null,
+    fontSize: item.fontSize,
+    lineHeight: item.lineHeight ? {
+      value: item.lineHeight.value,
+      unit: item.lineHeight.unit
+    } : null,
+    letterSpacing: item.letterSpacing ? {
+      value: item.letterSpacing.value,
+      unit: item.letterSpacing.unit
+    } : null,
+    availableTextStyles: item.availableTextStyles || [],
+    suggestedTextStyle: item.suggestedTextStyle,
+    suggestedTextStyleId: item.suggestedTextStyleId,
+    matchType: item.matchType,
+    isFromLibrary: item.isFromLibrary,
+    libraryName: item.libraryName
+  };
+}
+
+// Serialize variable items to remove non-serializable objects
+function serializeVariableItem(item) {
+  return {
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    path: item.path,
+    value: item.value,
+    // Convert color object to plain object
+    color: item.color ? {
+      r: item.color.r,
+      g: item.color.g,
+      b: item.color.b,
+      a: item.color.a || 1
+    } : null,
+    opacity: item.opacity,
+    property: item.property,
+    description: item.description,
+    availableColorVariables: item.availableColorVariables || [],
+    suggestedVariable: item.suggestedVariable,
+    suggestedVariableId: item.suggestedVariableId,
+    matchType: item.matchType,
+    isFromLibrary: item.isFromLibrary
+  };
+}
+
+// Serialize layer items to remove non-serializable objects
+function serializeLayerItem(item) {
+  return {
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    path: item.path,
+    description: item.description
+  };
+}
+
+// Helper function to create test results for debugging
+function getTestResults() {
+  return {
+    detachedTextStyles: [
+      {
+        id: 'test-text-1',
+        name: 'Test Text Element',
+        type: 'TEXT STYLE',
+        path: 'Test Page > Test Frame',
+        characters: 'Sample text without style',
+        description: 'Text without applied text style',
+        availableTextStyles: []
+      }
+    ],
+    detachedVariables: [
+      {
+        id: 'test-var-1',
+        name: 'Test Rectangle',
+        type: 'FILL COLOR',
+        path: 'Test Page > Test Frame',
+        value: '#FF0000',
+        color: { r: 1, g: 0, b: 0 },
+        opacity: 1,
+        property: 'fills[0]',
+        description: 'Solid color fill that could be a variable',
+        availableColorVariables: []
+      }
+    ],
+    detachedLayers: [
+      {
+        id: 'test-layer-1',
+        name: 'Test Vector',
+        type: 'VECTOR',
+        path: 'Test Page > Test Frame',
+        description: 'Custom shape that could be a component'
+      }
+    ],
+    summary: {
+      totalDetached: 3,
+      textStyles: 1,
+      variables: 1,
+      layers: 1
     }
   };
 }

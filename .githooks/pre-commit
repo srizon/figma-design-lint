@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# Pre-commit hook for automatic versioning
+# This hook runs before each commit and automatically increments the version
+
+echo "🚀 Running pre-commit versioning..."
+
+# Check if we're in the right directory and have the versioning script
+if [ ! -f "scripts/version.js" ]; then
+  echo "⚠️  Versioning script not found, skipping automatic versioning"
+  exit 0
+fi
+
+# Check if Node.js is available
+if ! command -v node >/dev/null 2>&1; then
+  echo "⚠️  Node.js not found, skipping automatic versioning"
+  exit 0
+fi
+
+# Set environment variable to indicate we're running in a git hook
+export GIT_HOOK=true
+
+# Run the automatic versioning
+node scripts/version.js auto
+
+# Check if versioning was successful
+if [ $? -eq 0 ]; then
+  echo "✅ Version updated successfully"
+else
+  echo "❌ Versioning failed"
+  exit 1
+fi
+
+echo "📝 Continuing with commit..." 

@@ -4,20 +4,29 @@
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
-  "editorType": ["figma", "dev"],
-  "permissions": ["currentuser"],
+  "editorType": [
+    "figma",
+    "dev"
+  ],
+  "permissions": [
+    "currentuser"
+  ],
   "networkAccess": {
-    "allowedDomains": ["none"]
+    "allowedDomains": [
+      "none"
+    ]
   },
-  "capabilities": ["codegen"],
+  "capabilities": [
+    "codegen"
+  ],
   "codegenLanguages": [
     {
       "label": "JavaScript",
       "value": "javascript"
     },
     {
-      "label": "TypeScript", 
+      "label": "TypeScript",
       "value": "typescript"
     }
   ]
-} 
+}
