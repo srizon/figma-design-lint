@@ -28,7 +28,7 @@ A powerful Figma plugin that helps you identify detached components, text styles
 
 1. **Clone or download this repository**
    ```bash
-   git clone https://github.com/your-username/figma-design-lint.git
+   git clone https://github.com/srizon/figma-design-lint.git
    cd figma-design-lint
    ```
 
