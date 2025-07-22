@@ -1,16 +1,30 @@
 # Dependencies
 node_modules/
+package-lock.json
+yarn.lock
+.yarn-integrity
+
+# Logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 
 # Build outputs
 dist/
 build/
 *.zip
+*.tgz
+*.tar.gz
 
 # IDE and editor files
 .vscode/
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.vscode-test/
 .idea/
 *.swp
 *.swo
@@ -24,10 +38,7 @@ build/
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# Logs
-logs
-*.log
+Desktop.ini
 
 # Runtime data
 pids
@@ -37,10 +48,61 @@ pids
 
 # Coverage directory used by tools like istanbul
 coverage/
+.nyc_output
+*.lcov
 
 # Temporary folders
 tmp/
 temp/
+.tmp/
 
 # Figma specific
-.figma/ 
+.figma/
+.figma-dev/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+.npm
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.fusebox/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional REPL history
+.node_repl_history
+
+# Yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Framework build outputs
+.next/
+.nuxt/
+.vuepress/dist/
+.serverless/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Local development
+.local/ 
