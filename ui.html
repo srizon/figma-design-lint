@@ -401,6 +401,12 @@
       color: var(--info-text);
     }
 
+    .status-banner.error {
+      background: var(--error-bg);
+      border-color: var(--error-border);
+      color: var(--error-text);
+    }
+
     .status-icon {
       font-size: 14px;
       flex-shrink: 0;
@@ -521,8 +527,7 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 8px;
-      flex-wrap: wrap;
+      gap: 12px;
     }
 
     .item-title {
@@ -534,71 +539,100 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      margin-right: 8px;
     }
 
     .item-badges {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 6px;
-      flex-wrap: wrap;
-      flex-shrink: 0;
+      flex-wrap: nowrap;
+      flex-shrink: 1;
+      max-width: 50%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .item-badges::-webkit-scrollbar {
+      display: none;
+    }
+
+    .item-badges:hover {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-secondary) transparent;
+    }
+
+    .item-badges:hover::-webkit-scrollbar {
+      display: block;
+      height: 2px;
+    }
+
+    .item-badges:hover::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .item-badges:hover::-webkit-scrollbar-thumb {
+      background: var(--border-secondary);
+      border-radius: 1px;
     }
 
     .item-badge {
-      background: var(--border-primary);
-      color: var(--text-tertiary);
-      padding: 3px 6px;
-      border-radius: 4px;
-      font-size: 9px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      flex-shrink: 0;
-      white-space: nowrap;
+      background: var(--bg-tertiary) !important;
+      color: var(--text-secondary) !important;
+      padding: 3px 8px !important;
+      border-radius: 4px !important;
+      font-size: 9px !important;
+      font-weight: 600 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.5px !important;
+      flex-shrink: 0 !important;
+      white-space: nowrap !important;
+      transition: all 0.15s ease !important;
+      min-height: 12px !important;
+      line-height: 1.2 !important;
+      border: 1px solid var(--border-secondary) !important;
+    }
+
+    .item-badge:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .item-badge.type {
-      background: var(--border-primary);
-      color: var(--text-tertiary);
-    }
-
-    .item-badge.library {
-      background: linear-gradient(135deg, #9C27B0, #7B1FA2);
-      color: white;
-      box-shadow: 0 1px 3px rgba(156, 39, 176, 0.3);
-      transition: all 0.15s ease;
-    }
-
-    .item-badge.library:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 2px 6px rgba(156, 39, 176, 0.4);
+      background: var(--bg-tertiary) !important;
+      color: var(--text-secondary) !important;
+      border-color: var(--border-secondary) !important;
     }
 
     .item-badge.match {
-      color: white;
-      transition: all 0.15s ease;
-    }
-
-    .item-badge.match:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      background: var(--bg-tertiary) !important;
+      color: var(--text-secondary) !important;
+      border-color: var(--border-secondary) !important;
     }
 
     .item-badge.match.exact {
-      background: #4CAF50;
+      background: var(--success-bg) !important;
+      color: var(--success-text) !important;
+      border-color: var(--success-border) !important;
     }
 
     .item-badge.match.partial {
-      background: #FF9800;
+      background: var(--warning-bg) !important;
+      color: var(--warning-text) !important;
+      border-color: var(--warning-border) !important;
     }
 
     .item-badge.match.fuzzy {
-      background: #2196F3;
+      background: var(--info-bg) !important;
+      color: var(--info-text) !important;
+      border-color: var(--info-border) !important;
     }
 
     .item-badge.match.similar {
-      background: #FF9800;
+      background: var(--info-bg) !important;
+      color: var(--info-text) !important;
+      border-color: var(--info-border) !important;
     }
 
     /* Item actions for fix buttons */
@@ -852,29 +886,32 @@
       }
       
       .item-header {
-        flex-direction: column;
+        justify-content: space-between;
         align-items: flex-start;
         gap: 8px;
       }
       
       .item-title {
-        margin-right: 0;
-        margin-bottom: 4px;
+        flex: 1;
+        min-width: 0;
+        margin-right: 8px;
       }
       
       .item-badges {
-        align-self: stretch;
-        justify-content: flex-start;
+        flex-shrink: 1;
+        flex-wrap: nowrap;
+        max-width: 45%;
+        gap: 4px;
+        overflow-x: auto;
+        overflow-y: hidden;
       }
 
       .item-badge {
         font-size: 8px;
-        padding: 2px 4px;
+        padding: 2px 6px;
+        flex-shrink: 1;
+        min-width: 0;
       }
-
-
-
-
     }
 
     /* Ensure badges never overlap on any screen size */
@@ -884,14 +921,28 @@
 
     /* Compact layout for very small badges when needed */
     @media (max-width: 400px) {
-      .item-badge {
-        font-size: 7px;
-        padding: 1px 3px;
+      .item-header {
+        gap: 6px;
       }
       
-      .item-badges {
-        gap: 4px;
+      .item-title {
+        margin-right: 6px;
       }
+      
+              .item-badges {
+          gap: 3px;
+          max-width: 50%;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+        }
+      
+              .item-badge {
+          font-size: 7px;
+          padding: 1px 4px;
+          flex-shrink: 1;
+          min-width: 0;
+        }
     }
 
     /* Empty state - Figma style with vertical centering */
@@ -1252,6 +1303,14 @@
         displayResults(msg.results);
       }
       
+      else if (msg.type === 'scan-error') {
+        console.log('UI: Received scan error:', msg.error);
+        hideLoading();
+        showStatus('Scan failed: ' + msg.error, 'error');
+        // Show empty results
+        displayResults(getEmptyResults());
+      }
+      
       else if (msg.type === 'no-selection') {
         console.log('UI: No selection detected');
         hideLoading();
@@ -1328,6 +1387,9 @@
           break;
         case 'info':
           icon.textContent = 'ℹ️';
+          break;
+        case 'error':
+          icon.textContent = '❌';
           break;
       }
       
@@ -1426,24 +1488,21 @@
         let matchBadge = '';
         if (item.suggestedTextStyle && item.matchType) {
           const matchLabels = {
-            'exact': 'Exact Match',
-            'partial': 'Partial Match',
-            'fuzzy': 'Similar Match'
+            'exact': 'MATCHED',
+            'partial': 'PARTIAL',
+            'fuzzy': 'SIMILAR'
           };
           matchBadge = `<div class="item-badge match ${item.matchType}">${matchLabels[item.matchType]}</div>`;
         } else if (item.suggestedVariable && item.matchType) {
           const matchLabels = {
-            'exact': 'Exact Match',
-            'similar': 'Similar Match'
+            'exact': 'MATCHED',
+            'similar': 'SIMILAR'
           };
           matchBadge = `<div class="item-badge match ${item.matchType}">${matchLabels[item.matchType]}</div>`;
         }
         
-        // Add library indicator for text styles
+        // Library indicator removed for simplicity
         let libraryBadge = '';
-        if (type === 'text-style' && item.isFromLibrary) {
-          libraryBadge = `<div class="item-badge library">📚 Library</div>`;
-        }
         
         // Generate font properties for text items
         let fontProperties = '';
@@ -1479,77 +1538,70 @@
           `;
         }
 
-        // Generate fix button or text style selector if there's a suggestion
+        // Generate fix button or dropdown selector if there's a suggestion
         let fixButton = '';
         if (type === 'text-style' && item.availableTextStyles && item.availableTextStyles.length > 0) {
-          // Organize text styles: separate local and library styles
-          const localStyles = item.availableTextStyles.filter(style => !style.isFromLibrary);
-          const libraryStyles = item.availableTextStyles.filter(style => style.isFromLibrary);
+          // Sort all text styles alphabetically
+          const sortedStyles = item.availableTextStyles.sort((a, b) => a.name.localeCompare(b.name));
           
-          // Sort each group alphabetically
-          localStyles.sort((a, b) => a.name.localeCompare(b.name));
-          libraryStyles.sort((a, b) => a.name.localeCompare(b.name));
-          
-          // Generate dropdown options with grouping
+          // Generate dropdown options
           let dropdownOptions = '';
           
-          // Add local styles first
-          if (localStyles.length > 0) {
-            dropdownOptions += '<optgroup label="Local Styles">';
-            dropdownOptions += localStyles.map(style => {
-              const isSelected = item.suggestedTextStyleId === style.id ? 'selected' : '';
-              const fontInfo = style.fontFamily && style.fontSize ? ` • ${style.fontFamily} ${style.fontSize}px` : '';
-              return `<option value="${style.id}" ${isSelected}>${escapeHtml(style.name)}${fontInfo}</option>`;
-            }).join('');
-            dropdownOptions += '</optgroup>';
-          }
-          
-          // Add library styles grouped by library name
-          if (libraryStyles.length > 0) {
-            // Group library styles by library name
-            const stylesByLibrary = {};
-            libraryStyles.forEach(style => {
-              const libraryName = style.libraryName && style.libraryName !== 'Connected Library' 
-                ? style.libraryName 
-                : 'Connected Library';
-              
-              if (!stylesByLibrary[libraryName]) {
-                stylesByLibrary[libraryName] = [];
-              }
-              stylesByLibrary[libraryName].push(style);
-            });
-            
-            // Sort library names alphabetically
-            const sortedLibraryNames = Object.keys(stylesByLibrary).sort();
-            
-            // Create optgroups for each library
-            sortedLibraryNames.forEach(libraryName => {
-              dropdownOptions += `<optgroup label="📚 ${libraryName}">`;
-              dropdownOptions += stylesByLibrary[libraryName].map(style => {
-                const isSelected = item.suggestedTextStyleId === style.id ? 'selected' : '';
-                const fontInfo = style.fontFamily && style.fontSize ? ` • ${style.fontFamily} ${style.fontSize}px` : '';
-                return `<option value="${style.id}" ${isSelected}>${escapeHtml(style.name)}${fontInfo}</option>`;
-              }).join('');
-              dropdownOptions += '</optgroup>';
-            });
-          }
+          // Add all styles in a single list
+          dropdownOptions += sortedStyles.map(style => {
+            const isSelected = item.suggestedTextStyleId === style.id ? 'selected' : '';
+            const fontInfo = style.fontFamily && style.fontSize ? ` • ${style.fontFamily} ${style.fontSize}px` : '';
+            return `<option value="${style.id}" ${isSelected}>${escapeHtml(style.name)}${fontInfo}</option>`;
+          }).join('');
           
           fixButton = `
             <div class="item-actions">
               <div class="text-style-selector">
-                <select class="style-dropdown" id="style-dropdown-${item.id}" onchange="updateApplyButton('${item.id}'); event.stopPropagation();">
+                <select class="style-dropdown" id="style-dropdown-${item.id}" onchange="updateApplyButton('${item.id}'); event.stopPropagation();" aria-label="Select text style to apply">
                   <option value="">Select a style...</option>
                   ${dropdownOptions}
                 </select>
                 <button class="apply-style-button" id="apply-button-${item.id}" 
                         onclick="applySelectedTextStyle('${item.id}'); event.stopPropagation();"
+                        aria-label="Apply selected text style to ${escapeHtml(item.name)}"
                         ${!item.suggestedTextStyleId ? 'disabled' : ''}>
                   Apply
                 </button>
               </div>
             </div>
           `;
+        } else if (type === 'variable' && item.availableColorVariables && item.availableColorVariables.length > 0) {
+          // Sort all color variables alphabetically
+          const sortedVariables = item.availableColorVariables.sort((a, b) => a.name.localeCompare(b.name));
+          
+          // Generate dropdown options
+          let dropdownOptions = '';
+          
+          // Add all variables in a single list
+          dropdownOptions += sortedVariables.map(variable => {
+            const isSelected = item.suggestedVariableId === variable.id ? 'selected' : '';
+            const colorInfo = variable.colorString ? ` • ${variable.colorString}` : '';
+            return `<option value="${variable.id}" ${isSelected}>${escapeHtml(variable.name)}${colorInfo}</option>`;
+          }).join('');
+          
+          fixButton = `
+            <div class="item-actions">
+              <div class="text-style-selector">
+                <select class="style-dropdown" id="color-dropdown-${item.id}" onchange="updateApplyColorButton('${item.id}'); event.stopPropagation();" aria-label="Select color variable to apply">
+                  <option value="">Select a variable...</option>
+                  ${dropdownOptions}
+                </select>
+                <button class="apply-style-button" id="apply-color-button-${item.id}" 
+                        onclick="applySelectedColorVariable('${item.id}', '${item.property}'); event.stopPropagation();"
+                        aria-label="Apply selected color variable to ${escapeHtml(item.name)}"
+                        ${!item.suggestedVariableId ? 'disabled' : ''}>
+                  Apply
+                </button>
+              </div>
+            </div>
+          `;
         } else if (type === 'variable' && item.suggestedVariable) {
+          // Fallback for old format
           fixButton = `
             <div class="item-actions">
               <button class="fix-button" onclick="applyColorVariable('${item.id}', '${item.suggestedVariableId}', '${item.property}'); event.stopPropagation();">
@@ -1705,6 +1757,24 @@
       }
     }
 
+    // Handle dropdown selection for color variables
+    function updateApplyColorButton(nodeId) {
+      const dropdown = document.getElementById(`color-dropdown-${nodeId}`);
+      const applyButton = document.getElementById(`apply-color-button-${nodeId}`);
+      
+      if (dropdown && applyButton) {
+        applyButton.disabled = !dropdown.value;
+      }
+    }
+
+    function applySelectedColorVariable(nodeId, propertyPath) {
+      const dropdown = document.getElementById(`color-dropdown-${nodeId}`);
+      
+      if (dropdown && dropdown.value) {
+        applyColorVariable(nodeId, dropdown.value, propertyPath);
+      }
+    }
+
     function applyColorVariable(nodeId, variableId, propertyPath) {
       parent.postMessage({ 
         pluginMessage: { 
@@ -1733,6 +1803,21 @@
       } else if (tabText === 'file') {
         scanFile({ target: activeScanTab });
       }
+    }
+
+    // Helper function to get empty results
+    function getEmptyResults() {
+      return {
+        detachedTextStyles: [],
+        detachedVariables: [],
+        detachedLayers: [],
+        summary: {
+          totalDetached: 0,
+          textStyles: 0,
+          variables: 0,
+          layers: 0
+        }
+      };
     }
   </script>
 </body>

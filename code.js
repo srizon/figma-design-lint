@@ -31,6 +31,10 @@ let lastScannedNodes = [];
 // Get all available text styles with caching
 let availableTextStylesCache = null;
 let textStylesCacheTimestamp = 0;
+
+// Get all available color variables with caching
+let availableColorVariablesCache = null;
+let colorVariablesCacheTimestamp = 0;
 const CACHE_DURATION = 30000; // 30 seconds
 
 async function getAvailableTextStyles() {
@@ -50,256 +54,37 @@ async function getAvailableTextStyles() {
   const seenStyleIds = new Set();
   
   try {
-    // Get local text styles first
-    const localTextStyles = figma.getLocalTextStyles();
-    console.log('Local text styles found:', localTextStyles.length);
-    localTextStyles.forEach(style => {
-      if (!seenStyleIds.has(style.id)) {
-        allTextStyles.push(style);
-        seenStyleIds.add(style.id);
-      }
-    });
+    // Add timeout to prevent hanging
+    const styleDiscoveryPromise = discoverTextStyles(allTextStyles, seenStyleIds);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Text style discovery timeout')), 10000) // 10 second timeout
+    );
     
-    // Enhanced approach to find ALL library text styles
-    console.log('Searching for library text styles...');
-    
-    // Method 1: Traverse document for currently used styles
-    const traverseForStyles = (node) => {
-      if (node.type === 'TEXT' && node.textStyleId) {
-        try {
-          const style = figma.getStyleById(node.textStyleId);
-          if (style && style.type === 'TEXT' && !seenStyleIds.has(style.id)) {
-            allTextStyles.push(style);
-            seenStyleIds.add(style.id);
-            console.log('Found used text style:', style.name, style.remote ? '(Library)' : '(Local)');
-          }
-        } catch (error) {
-          // Style might not be available, skip it
-        }
-      }
-      
-      if ('children' in node && node.children) {
-        node.children.forEach(traverseForStyles);
-      }
-    };
-    
-    // Traverse all pages (this also helps find styles used in non-visible pages)
-    figma.root.children.forEach(page => {
-      page.children.forEach(traverseForStyles);
-    });
-    
-    // Try to access team library styles through the teamLibrary API if available
-    try {
-      if (figma.teamLibrary && figma.teamLibrary.getAvailableLibraryTextStylesAsync) {
-        console.log('Attempting to access team library text styles...');
-        const libraryStyles = await figma.teamLibrary.getAvailableLibraryTextStylesAsync();
-        libraryStyles.forEach(style => {
-          if (!seenStyleIds.has(style.id)) {
-            allTextStyles.push(style);
-            seenStyleIds.add(style.id);
-            console.log('Found team library text style:', style.name);
-          }
-        });
-      }
-    } catch (error) {
-      console.log('Team library API not available or failed:', error.message);
-    }
-    
-    // Method 2: Try to load library components to discover their text styles
-    try {
-      // Find all component instances and try to access their main components
-      const allInstances = figma.root.findAll(node => node.type === 'INSTANCE');
-      console.log('Checking', allInstances.length, 'component instances for library styles...');
-      
-      // Use Set to track processed component keys to avoid duplicates
-      const processedComponentKeys = new Set();
-      
-      for (const instance of allInstances) {
-        try {
-          // Check if this instance has a remote main component
-          if (instance.mainComponent && instance.mainComponent.remote) {
-            const componentKey = instance.mainComponent.key;
-            
-            // Skip if we've already processed this component
-            if (!processedComponentKeys.has(componentKey)) {
-              processedComponentKeys.add(componentKey);
-              console.log('Found library component instance:', instance.name);
-              
-              // Traverse the instance to find text styles
-              traverseForStyles(instance);
-              
-              // Also try to access the main component if possible
-              try {
-                if (componentKey) {
-                  // Try to import the component to access all its styles
-                  const importedComponent = await figma.importComponentByKeyAsync(componentKey);
-                  if (importedComponent) {
-                    console.log('Successfully imported library component:', importedComponent.name);
-                    traverseForStyles(importedComponent);
-                    
-                    // Create a temporary instance to ensure we get all default styles
-                    try {
-                      const tempInstance = importedComponent.createInstance();
-                      traverseForStyles(tempInstance);
-                      tempInstance.remove(); // Clean up the temporary instance
-                    } catch (tempError) {
-                      console.log('Could not create temporary instance:', tempError.message);
-                    }
-                  }
-                }
-              } catch (importError) {
-                console.log('Could not import component:', importError.message);
-              }
-            }
-          }
-        } catch (error) {
-          // Skip this instance
-        }
-      }
-    } catch (error) {
-      console.log('Error accessing library components:', error);
-    }
-    
-    // Method 3: Try to discover styles through style overrides
-    const findStylesInOverrides = (node) => {
-      if (node.type === 'INSTANCE') {
-        try {
-          // Check text style overrides
-          const textChildren = node.findAll(child => child.type === 'TEXT');
-          textChildren.forEach(textNode => {
-            if (textNode.textStyleId) {
-              try {
-                const style = figma.getStyleById(textNode.textStyleId);
-                if (style && style.type === 'TEXT' && !seenStyleIds.has(style.id)) {
-                  allTextStyles.push(style);
-                  seenStyleIds.add(style.id);
-                  console.log('Found text style from instance:', style.name, style.remote ? '(Library)' : '(Local)');
-                }
-              } catch (error) {
-                // Skip if style is not accessible
-              }
-            }
-          });
-        } catch (error) {
-          // Skip this instance
-        }
-      }
-      
-      if ('children' in node && node.children) {
-        node.children.forEach(findStylesInOverrides);
-      }
-    };
-    
-    figma.root.children.forEach(page => {
-      page.children.forEach(findStylesInOverrides);
-    });
-    
-    // Method 4: Try to access styles through team library (experimental)
-    try {
-      // Check if we can access any additional library information
-      // Unfortunately, the Figma API doesn't provide direct access to all library styles
-      // that aren't currently used in the document
-      
-      console.log('Attempting to discover unused library styles...');
-      
-      // Try to access styles through different means
-      // This is a workaround since there's no direct API
-      const tryAccessLibraryStyles = async () => {
-        // Method 4a: Look for library components that might contain text styles
-        const libraryInstances = figma.root.findAll(node => 
-          node.type === 'INSTANCE' && 
-          node.mainComponent && 
-          node.mainComponent.remote
-        );
-        
-        for (const instance of libraryInstances) {
-          try {
-            // Just traverse the instance as-is to find currently used text styles
-            // CRITICAL: DO NOT reset overrides as this modifies the document during scanning!
-            // Previously this code called instance.resetOverrides() which caused auto-fixing
-            // during scanning, which is unacceptable user experience.
-            traverseForStyles(instance);
-          } catch (error) {
-            // Skip this instance
-          }
-        }
-        
-        // Method 4b: Try to trigger style loading by accessing component sets
-        const componentSets = figma.root.findAll(node => node.type === 'COMPONENT_SET');
-        console.log('Checking', componentSets.length, 'component sets for library styles...');
-        for (const componentSet of componentSets) {
-          try {
-            if (componentSet.remote) {
-              console.log('Found remote component set:', componentSet.name);
-              traverseForStyles(componentSet);
-              
-              // Also try to import the component set to access more styles
-              try {
-                if (componentSet.key) {
-                  const importedComponentSet = await figma.importComponentSetByKeyAsync(componentSet.key);
-                  if (importedComponentSet) {
-                    console.log('Successfully imported component set:', importedComponentSet.name);
-                    traverseForStyles(importedComponentSet);
-                    
-                    // Traverse all variants in the component set
-                    importedComponentSet.children.forEach(variant => {
-                      traverseForStyles(variant);
-                    });
-                  }
-                }
-              } catch (importError) {
-                console.log('Could not import component set:', importError.message);
-              }
-            }
-          } catch (error) {
-            // Skip this component set
-          }
-        }
-        
-        // Method 4c: Check if there are any team library styles by looking at import history
-        try {
-          // Try to access any recently used styles that might still be in memory
-          // This is a bit of a hack, but might help discover some library styles
-          const allTextNodes = figma.root.findAll(node => node.type === 'TEXT');
-          
-          // Check if any text nodes have been recently changed and might have library styles
-          for (const textNode of allTextNodes) {
-            try {
-              // Check if there are any style references in the node's history
-              if (textNode.textStyleId && textNode.textStyleId !== '') {
-                const style = figma.getStyleById(textNode.textStyleId);
-                if (style && style.remote && !seenStyleIds.has(style.id)) {
-                  allTextStyles.push(style);
-                  seenStyleIds.add(style.id);
-                  console.log('Found library style from text node:', style.name);
-                }
-              }
-            } catch (error) {
-              // Skip this text node
-            }
-          }
-        } catch (error) {
-          console.log('Error in additional style discovery:', error);
-        }
-      };
-      
-      await tryAccessLibraryStyles();
-      
-    } catch (error) {
-      console.log('Library style discovery error:', error);
-    }
-    
-    // Sort text styles: local first, then remote, alphabetically within each group
-    allTextStyles.sort((a, b) => {
-      if (a.remote !== b.remote) {
-        return a.remote ? 1 : -1; // Local styles first
-      }
-      return a.name.localeCompare(b.name);
-    });
+    await Promise.race([styleDiscoveryPromise, timeoutPromise]);
     
   } catch (error) {
-    console.log('Error getting text styles:', error);
+    console.log('Error getting text styles (using fallback):', error);
+    // Fallback to just local styles
+    try {
+      const localTextStyles = figma.getLocalTextStyles();
+      localTextStyles.forEach(style => {
+        if (!seenStyleIds.has(style.id)) {
+          allTextStyles.push(style);
+          seenStyleIds.add(style.id);
+        }
+      });
+    } catch (fallbackError) {
+      console.log('Even fallback failed:', fallbackError);
+    }
   }
+  
+  // Sort text styles: local first, then remote, alphabetically within each group
+  allTextStyles.sort((a, b) => {
+    if (a.remote !== b.remote) {
+      return a.remote ? 1 : -1; // Local styles first
+    }
+    return a.name.localeCompare(b.name);
+  });
   
   // Cache the results
   availableTextStylesCache = allTextStyles;
@@ -310,19 +95,265 @@ async function getAvailableTextStyles() {
   console.log('Local text styles:', allTextStyles.filter(s => !s.remote).length);
   console.log('Remote/Library text styles:', allTextStyles.filter(s => s.remote).length);
   
-  if (allTextStyles.filter(s => s.remote).length > 0) {
-    console.log('Library styles found:');
-    allTextStyles.filter(s => s.remote).forEach(style => {
-      console.log('  -', style.name);
-    });
-  } else {
-    console.log('ℹ️ No library text styles found. This could mean:');
-    console.log('  - No libraries are connected to this file');
-    console.log('  - Library styles haven\'t been used in this document yet');
-    console.log('  - The plugin can only discover library styles that are currently used in the document due to Figma API limitations');
+  return allTextStyles;
+}
+
+// Separate function for text style discovery with simplified logic
+async function discoverTextStyles(allTextStyles, seenStyleIds) {
+  // Get local text styles first
+  const localTextStyles = figma.getLocalTextStyles();
+  console.log('Local text styles found:', localTextStyles.length);
+  localTextStyles.forEach(style => {
+    if (!seenStyleIds.has(style.id)) {
+      allTextStyles.push(style);
+      seenStyleIds.add(style.id);
+    }
+  });
+  
+  // Enhanced approach to find ALL library text styles
+  console.log('Searching for library text styles...');
+  
+  // Method 1: Traverse document for currently used styles (simplified)
+  const traverseForStyles = (node) => {
+    if (node.type === 'TEXT' && node.textStyleId) {
+      try {
+        const style = figma.getStyleById(node.textStyleId);
+        if (style && style.type === 'TEXT' && style.id && !seenStyleIds.has(style.id)) {
+          allTextStyles.push(style);
+          seenStyleIds.add(style.id);
+          console.log('Found used text style:', style.name, style.remote ? '(Library)' : '(Local)');
+        }
+      } catch (error) {
+        // Style might not be available or has been detached, skip it
+        console.log('Could not access text style:', node.textStyleId, error.message);
+      }
+    }
+    
+    if ('children' in node && node.children) {
+      node.children.forEach(traverseForStyles);
+    }
+  };
+  
+  // Traverse all pages (this also helps find styles used in non-visible pages)
+  figma.root.children.forEach(page => {
+    try {
+      page.children.forEach(traverseForStyles);
+    } catch (error) {
+      console.log('Error traversing page:', page.name, error);
+    }
+  });
+  
+  // Simplified library detection - only check existing instances, don't import
+  try {
+    const allInstances = figma.root.findAll(node => node.type === 'INSTANCE');
+    console.log('Checking', allInstances.length, 'component instances for library styles...');
+    
+    // Limit to prevent hanging on large files
+    const instancesToCheck = allInstances.slice(0, 50); // Only check first 50 instances
+    
+    for (const instance of instancesToCheck) {
+      try {
+        if (instance.mainComponent && instance.mainComponent.remote) {
+          // Just traverse the instance as-is to find currently used text styles
+          // Do NOT import or reset - just check what's already there
+          traverseForStyles(instance);
+        }
+      } catch (error) {
+        // Skip this instance
+        continue;
+      }
+    }
+  } catch (error) {
+    console.log('Error checking instances:', error);
+  }
+}
+
+// Get all available color variables with caching
+async function getAvailableColorVariables() {
+  const now = Date.now();
+  
+  // Return cached color variables if still valid
+  if (availableColorVariablesCache && (now - colorVariablesCacheTimestamp) < CACHE_DURATION) {
+    return availableColorVariablesCache;
   }
   
-  return allTextStyles;
+  console.log('Refreshing color variables cache...');
+  
+  let allColorVariables = [];
+  const seenVariableIds = new Set();
+  
+  try {
+    // Add timeout to prevent hanging
+    const variableDiscoveryPromise = discoverColorVariables(allColorVariables, seenVariableIds);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Color variable discovery timeout')), 5000) // 5 second timeout
+    );
+    
+    await Promise.race([variableDiscoveryPromise, timeoutPromise]);
+    
+  } catch (error) {
+    console.log('Error getting color variables (using fallback):', error);
+    // Fallback to just local variables
+    try {
+      const localVariables = figma.variables.getLocalVariables();
+      const localColorVariables = localVariables.filter(v => v.resolvedType === 'COLOR');
+      
+      localColorVariables.forEach(variable => {
+        if (!seenVariableIds.has(variable.id)) {
+          try {
+            const resolvedValue = variable.resolveForConsumer();
+            if (resolvedValue && resolvedValue.type === 'SOLID') {
+              allColorVariables.push({
+                id: variable.id,
+                name: variable.name,
+                remote: variable.remote,
+                resolvedType: variable.resolvedType,
+                resolvedColor: resolvedValue.color,
+                isLocal: true
+              });
+              seenVariableIds.add(variable.id);
+            }
+          } catch (resolveError) {
+            console.log('Could not resolve local color variable:', variable.name, resolveError);
+          }
+        }
+      });
+    } catch (fallbackError) {
+      console.log('Even fallback failed:', fallbackError);
+    }
+  }
+  
+  // Sort color variables: local first, then remote, alphabetically within each group
+  allColorVariables.sort((a, b) => {
+    if (a.remote !== b.remote) {
+      return a.remote ? 1 : -1; // Local variables first
+    }
+    return a.name.localeCompare(b.name);
+  });
+  
+  // Cache the results
+  availableColorVariablesCache = allColorVariables;
+  colorVariablesCacheTimestamp = now;
+  
+  console.log('=== COLOR VARIABLE DISCOVERY SUMMARY ===');
+  console.log('Total available color variables:', allColorVariables.length);
+  console.log('Local color variables:', allColorVariables.filter(v => !v.remote).length);
+  console.log('Remote/Library color variables:', allColorVariables.filter(v => v.remote).length);
+  
+  return allColorVariables;
+}
+
+// Separate function for color variable discovery with simplified logic
+async function discoverColorVariables(allColorVariables, seenVariableIds) {
+  // Get local color variables first
+  const localVariables = figma.variables.getLocalVariables();
+  const localColorVariables = localVariables.filter(v => v.resolvedType === 'COLOR');
+  console.log('Local color variables found:', localColorVariables.length);
+  
+  localColorVariables.forEach(variable => {
+    if (!seenVariableIds.has(variable.id)) {
+      try {
+        // Resolve the variable to get its color value
+        const resolvedValue = variable.resolveForConsumer();
+        if (resolvedValue && resolvedValue.type === 'SOLID') {
+          allColorVariables.push({
+            id: variable.id,
+            name: variable.name,
+            remote: variable.remote,
+            resolvedType: variable.resolvedType,
+            resolvedColor: resolvedValue.color,
+            isLocal: true
+          });
+          seenVariableIds.add(variable.id);
+        }
+      } catch (error) {
+        console.log('Could not resolve local color variable:', variable.name, error);
+      }
+    }
+  });
+  
+  // Try to find library color variables by looking at currently used variables (simplified)
+  console.log('Searching for library color variables...');
+  
+  const traverseForColorVariables = (node) => {
+    try {
+      // Check fill variables
+      if (node.boundVariables && node.boundVariables.fills) {
+        Object.values(node.boundVariables.fills).forEach(variableAlias => {
+          if (variableAlias && variableAlias.id) {
+            try {
+              const variable = figma.variables.getVariableById(variableAlias.id);
+              if (variable && variable.id && variable.resolvedType === 'COLOR' && !seenVariableIds.has(variable.id)) {
+                const resolvedValue = variable.resolveForConsumer();
+                if (resolvedValue && resolvedValue.type === 'SOLID' && resolvedValue.color) {
+                  allColorVariables.push({
+                    id: variable.id,
+                    name: variable.name,
+                    remote: variable.remote,
+                    resolvedType: variable.resolvedType,
+                    resolvedColor: resolvedValue.color,
+                    isLocal: !variable.remote
+                  });
+                  seenVariableIds.add(variable.id);
+                  console.log('Found color variable from fills:', variable.name, variable.remote ? '(Library)' : '(Local)');
+                }
+              }
+            } catch (error) {
+              // Variable might not be available or has been detached
+              console.log('Could not access color variable from fills:', variableAlias.id, error.message);
+            }
+          }
+        });
+      }
+      
+      // Check stroke variables
+      if (node.boundVariables && node.boundVariables.strokes) {
+        Object.values(node.boundVariables.strokes).forEach(variableAlias => {
+          if (variableAlias && variableAlias.id) {
+            try {
+              const variable = figma.variables.getVariableById(variableAlias.id);
+              if (variable && variable.resolvedType === 'COLOR' && !seenVariableIds.has(variable.id)) {
+                const resolvedValue = variable.resolveForConsumer();
+                if (resolvedValue && resolvedValue.type === 'SOLID') {
+                  allColorVariables.push({
+                    id: variable.id,
+                    name: variable.name,
+                    remote: variable.remote,
+                    resolvedType: variable.resolvedType,
+                    resolvedColor: resolvedValue.color,
+                    isLocal: !variable.remote
+                  });
+                  seenVariableIds.add(variable.id);
+                  console.log('Found color variable from strokes:', variable.name, variable.remote ? '(Library)' : '(Local)');
+                }
+              }
+            } catch (error) {
+              // Variable might not be available
+            }
+          }
+        });
+      }
+    } catch (error) {
+      // Skip this node
+    }
+    
+    if ('children' in node && node.children) {
+      node.children.forEach(traverseForColorVariables);
+    }
+  };
+  
+  // Traverse all pages to find used color variables (with limits)
+  try {
+    figma.root.children.forEach(page => {
+      try {
+        page.children.forEach(traverseForColorVariables);
+      } catch (error) {
+        console.log('Error traversing page for color variables:', page.name, error);
+      }
+    });
+  } catch (error) {
+    console.log('Error traversing pages for color variables:', error);
+  }
 }
 
 // Find matching text styles based on font properties - returns multiple matches
@@ -417,14 +448,83 @@ async function findMatchingTextStyles(textNode) {
   return { matches, allStyles: textStyles };
 }
 
-// Find matching color variable
+// Find matching color variables based on color properties - returns multiple matches
+async function findMatchingColorVariables(color) {
+  const colorVariables = await getAvailableColorVariables();
+  
+  if (!color) {
+    return { matches: [], allVariables: colorVariables };
+  }
+  
+  const matches = [];
+  
+  // Find exact matches first
+  colorVariables.forEach(variable => {
+    try {
+      if (variable.resolvedColor) {
+        const varColor = variable.resolvedColor;
+        
+        // Check for exact RGB match (within 1/255 tolerance for rounding)
+        const rDiff = Math.abs(varColor.r - color.r);
+        const gDiff = Math.abs(varColor.g - color.g);
+        const bDiff = Math.abs(varColor.b - color.b);
+        
+        if (rDiff < 0.004 && gDiff < 0.004 && bDiff < 0.004) { // ~1/255 tolerance
+          matches.push({
+            variable: variable,
+            matchType: 'exact',
+            isFromLibrary: variable.remote || false,
+            colorDistance: rDiff + gDiff + bDiff
+          });
+        }
+      }
+    } catch (error) {
+      // Skip this variable
+    }
+  });
+  
+  // If no exact matches, try similar matches (within reasonable tolerance)
+  if (matches.length === 0) {
+    const tolerance = 0.1; // 10% tolerance
+    
+    colorVariables.forEach(variable => {
+      try {
+        if (variable.resolvedColor) {
+          const varColor = variable.resolvedColor;
+          
+          const rDiff = Math.abs(varColor.r - color.r);
+          const gDiff = Math.abs(varColor.g - color.g);
+          const bDiff = Math.abs(varColor.b - color.b);
+          
+          if (rDiff <= tolerance && gDiff <= tolerance && bDiff <= tolerance) {
+            const distance = rDiff + gDiff + bDiff;
+            matches.push({
+              variable: variable,
+              matchType: 'similar',
+              isFromLibrary: variable.remote || false,
+              colorDistance: distance
+            });
+          }
+        }
+      } catch (error) {
+        // Skip this variable
+      }
+    });
+    
+    // Sort similar matches by distance (closest first)
+    matches.sort((a, b) => a.colorDistance - b.colorDistance);
+  }
+  
+  return { matches, allVariables: colorVariables };
+}
+
+// Legacy function for backward compatibility
 function findMatchingColorVariable(color) {
+  // This function is kept for backward compatibility but now uses the async version
+  // In practice, we should use findMatchingColorVariables instead
   try {
     const variables = figma.variables.getLocalVariables();
     const colorVariables = variables.filter(v => v.resolvedType === 'COLOR');
-    
-    // Convert color to RGB string for comparison
-    const colorString = `rgb(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)})`;
     
     // Try to find exact match
     for (const variable of colorVariables) {
@@ -432,9 +532,12 @@ function findMatchingColorVariable(color) {
         const resolvedValue = variable.resolveForConsumer();
         if (resolvedValue && resolvedValue.type === 'SOLID') {
           const varColor = resolvedValue.color;
-          const varColorString = `rgb(${Math.round(varColor.r * 255)}, ${Math.round(varColor.g * 255)}, ${Math.round(varColor.b * 255)})`;
           
-          if (varColorString === colorString) {
+          const rDiff = Math.abs(varColor.r - color.r);
+          const gDiff = Math.abs(varColor.g - color.g);
+          const bDiff = Math.abs(varColor.b - color.b);
+          
+          if (rDiff < 0.004 && gDiff < 0.004 && bDiff < 0.004) {
             return { variable, matchType: 'exact' };
           }
         }
@@ -512,6 +615,39 @@ async function scanForDetachedElements(nodes) {
 
   console.log('Starting scan with', nodes.length, 'nodes');
   
+  try {
+    // Add timeout to prevent hanging
+    const scanPromise = performScan(nodes);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Scan timeout')), 30000) // 30 second timeout
+    );
+    
+    await Promise.race([scanPromise, timeoutPromise]);
+    
+  } catch (error) {
+    console.error('Scan error:', error);
+    figma.notify('Scan failed: ' + error.message);
+    // Return empty results to prevent UI from hanging
+    return {
+      detachedTextStyles: [],
+      detachedVariables: [],
+      detachedLayers: [],
+      summary: {
+        totalDetached: 0,
+        textStyles: 0,
+        variables: 0,
+        layers: 0
+      }
+    };
+  }
+
+  console.log('Scan complete. Results:', scanResults);
+  updateSummary();
+  return scanResults;
+}
+
+// Separate function for the actual scanning logic
+async function performScan(nodes) {
   // Track node types we find
   const nodeTypes = {};
   
@@ -519,13 +655,17 @@ async function scanForDetachedElements(nodes) {
     const node = nodes[index];
     console.log(`Processing node ${index + 1}/${nodes.length}:`, node.name, '(', node.type, ')');
     nodeTypes[node.type] = (nodeTypes[node.type] || 0) + 1;
-    await traverseNode(node);
+    
+    try {
+      await traverseNode(node);
+    } catch (error) {
+      console.error(`Error processing node ${node.name}:`, error);
+      // Continue with next node instead of failing completely
+      continue;
+    }
   }
 
   console.log('Node types found:', nodeTypes);
-  console.log('Scan complete. Results:', scanResults);
-  updateSummary();
-  return scanResults;
 }
 
 // Reset scan results
@@ -542,9 +682,11 @@ function resetResults() {
     }
   };
   
-  // Force refresh of text styles cache to capture any newly connected libraries
+  // Force refresh of caches to capture any newly connected libraries
   availableTextStylesCache = null;
   textStylesCacheTimestamp = 0;
+  availableColorVariablesCache = null;
+  colorVariablesCacheTimestamp = 0;
 }
 
 // Traverse through all nodes recursively
@@ -576,7 +718,7 @@ async function traverseNode(node) {
         const textStyleData = {
           id: node.id,
           name: node.name,
-          type: 'TEXT_NO_STYLE',
+          type: 'TEXT STYLE',
           path: getNodePath(node),
           characters: node.characters.substring(0, 50) + (node.characters.length > 50 ? '...' : ''),
           description: 'Text without applied text style',
@@ -596,11 +738,6 @@ async function traverseNode(node) {
           textStyleData.isFromLibrary = bestMatch.isFromLibrary;
           textStyleData.libraryName = bestMatch.libraryName;
           textStyleData.textStyleMatches = textStyleMatches.matches;
-          
-          let libraryIndicator = '';
-          if (bestMatch.isFromLibrary) {
-            libraryIndicator = ` (Library: ${bestMatch.libraryName || 'Connected Library'})`;
-          }
           
           textStyleData.description = `Text without text style`;
         }
@@ -632,7 +769,8 @@ async function traverseNode(node) {
       // Check fills
       if (node.fills && Array.isArray(node.fills)) {
         console.log('Checking fills for node:', node.name, 'Fills:', node.fills);
-        node.fills.forEach((fill, index) => {
+        for (let index = 0; index < node.fills.length; index++) {
+          const fill = node.fills[index];
           if (fill.type === 'SOLID' && fill.color) {
             // Check if this fill is already using a variable
             const isUsingVariable = node.boundVariables && 
@@ -646,40 +784,58 @@ async function traverseNode(node) {
               const b = Math.round(fill.color.b * 255);
               const colorString = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
               
-              // Find matching color variable
-              const colorMatch = findMatchingColorVariable(fill.color);
+              // Find matching color variables
+              const colorMatches = await findMatchingColorVariables(fill.color);
+              
+              // Get all available color variables and format them for the dropdown
+              const allAvailableVariables = colorMatches.allVariables.map(variable => ({
+                id: variable.id,
+                name: variable.name,
+                isFromLibrary: variable.remote || false,
+                resolvedColor: variable.resolvedColor,
+                colorString: variable.resolvedColor ? 
+                  `#${Math.round(variable.resolvedColor.r * 255).toString(16).padStart(2, '0')}${Math.round(variable.resolvedColor.g * 255).toString(16).padStart(2, '0')}${Math.round(variable.resolvedColor.b * 255).toString(16).padStart(2, '0')}` 
+                  : ''
+              }));
               
               const variableData = {
                 id: node.id,
                 name: node.name,
-                type: 'COLOR_FILL',
+                type: 'FILL COLOR',
                 path: getNodePath(node),
                 value: colorString,
                 color: fill.color,
                 opacity: fill.opacity !== undefined ? fill.opacity : (fill.color.a !== undefined ? fill.color.a : 1),
                 property: `fills[${index}]`,
-                description: 'Solid color fill that could be a variable'
+                description: 'Solid color fill that could be a variable',
+                // Include ALL available color variables in the dropdown
+                availableColorVariables: allAvailableVariables
               };
               
               console.log('Created fill color data:', variableData);
               
-              if (colorMatch) {
-                variableData.suggestedVariable = colorMatch.variable.name;
-                variableData.suggestedVariableId = colorMatch.variable.id;
-                variableData.matchType = colorMatch.matchType;
-                variableData.description = `Solid color fill that could use variable "${colorMatch.variable.name}" (${colorMatch.matchType} match)`;
+              if (colorMatches.matches.length > 0) {
+                const bestMatch = colorMatches.matches[0];
+                variableData.suggestedVariable = bestMatch.variable.name;
+                variableData.suggestedVariableId = bestMatch.variable.id;
+                variableData.matchType = bestMatch.matchType;
+                variableData.isFromLibrary = bestMatch.isFromLibrary;
+                variableData.colorMatches = colorMatches.matches;
+                
+                variableData.description = `Solid color fill that could use variable "${bestMatch.variable.name}" (${bestMatch.matchType} match)`;
               }
               
               scanResults.detachedVariables.push(variableData);
             }
           }
-        });
+        }
       }
 
       // Check strokes
       if (node.strokes && Array.isArray(node.strokes)) {
         console.log('Checking strokes for node:', node.name, 'Strokes:', node.strokes);
-        node.strokes.forEach((stroke, index) => {
+        for (let index = 0; index < node.strokes.length; index++) {
+          const stroke = node.strokes[index];
           if (stroke.type === 'SOLID' && stroke.color) {
             // Check if this stroke is already using a variable
             const isUsingVariable = node.boundVariables && 
@@ -693,39 +849,57 @@ async function traverseNode(node) {
               const b = Math.round(stroke.color.b * 255);
               const colorString = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
               
-              // Find matching color variable
-              const colorMatch = findMatchingColorVariable(stroke.color);
+              // Find matching color variables
+              const colorMatches = await findMatchingColorVariables(stroke.color);
+              
+              // Get all available color variables and format them for the dropdown
+              const allAvailableVariables = colorMatches.allVariables.map(variable => ({
+                id: variable.id,
+                name: variable.name,
+                isFromLibrary: variable.remote || false,
+                resolvedColor: variable.resolvedColor,
+                colorString: variable.resolvedColor ? 
+                  `#${Math.round(variable.resolvedColor.r * 255).toString(16).padStart(2, '0')}${Math.round(variable.resolvedColor.g * 255).toString(16).padStart(2, '0')}${Math.round(variable.resolvedColor.b * 255).toString(16).padStart(2, '0')}` 
+                  : ''
+              }));
               
               const variableData = {
                 id: node.id,
                 name: node.name,
-                type: 'COLOR_STROKE',
+                type: 'STROKE COLOR',
                 path: getNodePath(node),
                 value: colorString,
                 color: stroke.color,
                 opacity: stroke.opacity !== undefined ? stroke.opacity : (stroke.color.a !== undefined ? stroke.color.a : 1),
                 property: `strokes[${index}]`,
-                description: 'Solid color stroke that could be a variable'
+                description: 'Solid color stroke that could be a variable',
+                // Include ALL available color variables in the dropdown
+                availableColorVariables: allAvailableVariables
               };
               
               console.log('Created stroke color data:', variableData);
               
-              if (colorMatch) {
-                variableData.suggestedVariable = colorMatch.variable.name;
-                variableData.suggestedVariableId = colorMatch.variable.id;
-                variableData.matchType = colorMatch.matchType;
-                variableData.description = `Solid color stroke that could use variable "${colorMatch.variable.name}" (${colorMatch.matchType} match)`;
+              if (colorMatches.matches.length > 0) {
+                const bestMatch = colorMatches.matches[0];
+                variableData.suggestedVariable = bestMatch.variable.name;
+                variableData.suggestedVariableId = bestMatch.variable.id;
+                variableData.matchType = bestMatch.matchType;
+                variableData.isFromLibrary = bestMatch.isFromLibrary;
+                variableData.colorMatches = colorMatches.matches;
+                
+                variableData.description = `Solid color stroke that could use variable "${bestMatch.variable.name}" (${bestMatch.matchType} match)`;
               }
               
               scanResults.detachedVariables.push(variableData);
             }
           }
-        });
+        }
       }
 
       // Check effects (shadows, blurs)
       if (node.effects && Array.isArray(node.effects)) {
-        node.effects.forEach((effect, index) => {
+        for (let index = 0; index < node.effects.length; index++) {
+          const effect = node.effects[index];
           if (effect.type === 'DROP_SHADOW' || effect.type === 'INNER_SHADOW') {
             // Check if this effect is already using a variable
             const isUsingVariable = node.boundVariables && 
@@ -744,7 +918,7 @@ async function traverseNode(node) {
               });
             }
           }
-        });
+        }
       }
     }
 
@@ -976,152 +1150,195 @@ async function refreshCurrentScan() {
 
 // Handle messages from UI
 figma.ui.onmessage = async (msg) => {
-  console.log('Received message:', msg.type);
-  
-  if (msg.type === 'scan-selection') {
-    console.log('Scanning selection...');
-    const selection = figma.currentPage.selection;
-    console.log('Selection count:', selection.length);
+  try {
+    console.log('Received message:', msg.type);
     
-    // Update current scan scope
-    currentScanScope = 'selection';
-    
-    // Check if nothing is selected
-    if (selection.length === 0) {
-      figma.ui.postMessage({ type: 'no-selection' });
-      return;
-    }
-    
-    const results = await scanForDetachedElements(selection);
-    figma.ui.postMessage({ type: 'scan-results', results });
-  }
-  
-  else if (msg.type === 'scan-page') {
-    console.log('Scanning page...');
-    const pageNodes = figma.currentPage.children;
-    console.log('Page nodes count:', pageNodes.length);
-    
-    // Update current scan scope
-    currentScanScope = 'page';
-    
-    const results = await scanForDetachedElements(pageNodes);
-    figma.ui.postMessage({ type: 'scan-results', results });
-  }
-  
-  else if (msg.type === 'scan-file') {
-    console.log('Scanning file...');
-    const allPages = figma.root.children;
-    let allNodes = [];
-    
-    allPages.forEach(page => {
-      allNodes = allNodes.concat(page.children);
-    });
-    
-    console.log('Total nodes count:', allNodes.length);
-    
-    // Update current scan scope
-    currentScanScope = 'file';
-    
-    const results = await scanForDetachedElements(allNodes);
-    figma.ui.postMessage({ type: 'scan-results', results });
-  }
-  
-  else if (msg.type === 'select-node') {
-    try {
-      const node = figma.getNodeById(msg.nodeId);
-      if (node) {
-        figma.currentPage.selection = [node];
-        figma.viewport.scrollAndZoomIntoView([node]);
-        figma.notify(`Selected: ${node.name}`);
-      }
-    } catch (error) {
-      figma.notify('Could not select node');
-    }
-  }
-  
-  else if (msg.type === 'apply-text-style') {
-    try {
-      const node = figma.getNodeById(msg.nodeId);
-      const textStyle = figma.getStyleById(msg.textStyleId);
+    if (msg.type === 'scan-selection') {
+      console.log('Scanning selection...');
+      const selection = figma.currentPage.selection;
+      console.log('Selection count:', selection.length);
       
-      if (node && textStyle && node.type === 'TEXT') {
-        const success = applyTextStyle(node, textStyle);
-        if (success) {
-          const styleSource = textStyle.remote ? ' (from connected library)' : '';
-          figma.notify(`Applied text style "${textStyle.name}"${styleSource} to "${node.name}"`);
-          // Refresh the scan results using the current scan scope
-          await refreshCurrentScan();
-        } else {
-          figma.notify('Failed to apply text style');
+      // Update current scan scope
+      currentScanScope = 'selection';
+      
+      // Check if nothing is selected
+      if (selection.length === 0) {
+        figma.ui.postMessage({ type: 'no-selection' });
+        return;
+      }
+      
+      try {
+        const results = await scanForDetachedElements(selection);
+        figma.ui.postMessage({ type: 'scan-results', results });
+      } catch (error) {
+        console.error('Selection scan failed:', error);
+        figma.notify('Selection scan failed: ' + error.message);
+        figma.ui.postMessage({ type: 'scan-results', results: getEmptyResults() });
+      }
+    }
+    
+    else if (msg.type === 'scan-page') {
+      console.log('Scanning page...');
+      const pageNodes = figma.currentPage.children;
+      console.log('Page nodes count:', pageNodes.length);
+      
+      // Update current scan scope
+      currentScanScope = 'page';
+      
+      try {
+        const results = await scanForDetachedElements(pageNodes);
+        figma.ui.postMessage({ type: 'scan-results', results });
+      } catch (error) {
+        console.error('Page scan failed:', error);
+        figma.notify('Page scan failed: ' + error.message);
+        figma.ui.postMessage({ type: 'scan-results', results: getEmptyResults() });
+      }
+    }
+    
+    else if (msg.type === 'scan-file') {
+      console.log('Scanning file...');
+      const allPages = figma.root.children;
+      let allNodes = [];
+      
+      allPages.forEach(page => {
+        allNodes = allNodes.concat(page.children);
+      });
+      
+      console.log('Total nodes count:', allNodes.length);
+      
+      // Update current scan scope
+      currentScanScope = 'file';
+      
+      try {
+        const results = await scanForDetachedElements(allNodes);
+        figma.ui.postMessage({ type: 'scan-results', results });
+      } catch (error) {
+        console.error('File scan failed:', error);
+        figma.notify('File scan failed: ' + error.message);
+        figma.ui.postMessage({ type: 'scan-results', results: getEmptyResults() });
+      }
+    }
+    
+    else if (msg.type === 'select-node') {
+      try {
+        const node = figma.getNodeById(msg.nodeId);
+        if (node) {
+          figma.currentPage.selection = [node];
+          figma.viewport.scrollAndZoomIntoView([node]);
+          figma.notify(`Selected: ${node.name}`);
         }
+      } catch (error) {
+        figma.notify('Could not select node');
       }
-    } catch (error) {
-      figma.notify('Error applying text style');
     }
-  }
-  
-  else if (msg.type === 'apply-color-variable') {
-    try {
-      const node = figma.getNodeById(msg.nodeId);
-      const variable = figma.variables.getVariableById(msg.variableId);
-      
-      if (node && variable) {
-        const success = applyColorVariable(node, variable, msg.propertyPath);
-        if (success) {
-          figma.notify(`Applied color variable "${variable.name}" to "${node.name}"`);
-          // Refresh the scan results using the current scan scope
-          await refreshCurrentScan();
-        } else {
-          figma.notify('Failed to apply color variable');
+    
+    else if (msg.type === 'apply-text-style') {
+      try {
+        const node = figma.getNodeById(msg.nodeId);
+        const textStyle = figma.getStyleById(msg.textStyleId);
+        
+        if (node && textStyle && node.type === 'TEXT') {
+          const success = applyTextStyle(node, textStyle);
+          if (success) {
+            const styleSource = '';
+            figma.notify(`Applied text style "${textStyle.name}"${styleSource} to "${node.name}"`);
+            // Refresh the scan results using the current scan scope
+            await refreshCurrentScan();
+          } else {
+            figma.notify('Failed to apply text style');
+          }
         }
+      } catch (error) {
+        figma.notify('Error applying text style');
       }
-    } catch (error) {
-      figma.notify('Error applying color variable');
     }
-  }
-  
-  else if (msg.type === 'resize-window') {
-    try {
-      // Resize the plugin window
-      figma.ui.resize(msg.width, msg.height);
-    } catch (error) {
-      console.error('Error resizing window:', error);
+    
+    else if (msg.type === 'apply-color-variable') {
+      try {
+        const node = figma.getNodeById(msg.nodeId);
+        const variable = figma.variables.getVariableById(msg.variableId);
+        
+        if (node && variable) {
+          const success = applyColorVariable(node, variable, msg.propertyPath);
+          if (success) {
+            figma.notify(`Applied color variable "${variable.name}" to "${node.name}"`);
+            // Refresh the scan results using the current scan scope
+            await refreshCurrentScan();
+          } else {
+            figma.notify('Failed to apply color variable');
+          }
+        }
+      } catch (error) {
+        figma.notify('Error applying color variable');
+      }
     }
-  }
-  
-  else if (msg.type === 'export-results') {
-    try {
-      // Create a simple export of results
-      const exportData = {
-        timestamp: new Date().toISOString(),
-        pageName: figma.currentPage.name,
-        results: msg.results
-      };
-      
-      // In a real implementation, you might want to save this to a file
-      // For now, we'll just notify the user
-      figma.notify('Export functionality would save results to a file');
-      console.log('Export data:', exportData);
-    } catch (error) {
-      figma.notify('Export failed');
+    
+    else if (msg.type === 'resize-window') {
+      try {
+        // Resize the plugin window
+        figma.ui.resize(msg.width, msg.height);
+      } catch (error) {
+        console.error('Error resizing window:', error);
+      }
     }
-  }
-  
-  else if (msg.type === 'fix-all-issues') {
-    try {
-      // In a real implementation, this would attempt to fix the issues
-      // For now, we'll just notify the user
-      figma.notify('Fix All functionality would attempt to resolve detached elements');
-      console.log('Fix all issues:', msg.results);
-    } catch (error) {
-      figma.notify('Fix All failed');
+    
+    else if (msg.type === 'export-results') {
+      try {
+        // Create a simple export of results
+        const exportData = {
+          timestamp: new Date().toISOString(),
+          pageName: figma.currentPage.name,
+          results: msg.results
+        };
+        
+        // In a real implementation, you might want to save this to a file
+        // For now, we'll just notify the user
+        figma.notify('Export functionality would save results to a file');
+        console.log('Export data:', exportData);
+      } catch (error) {
+        figma.notify('Export failed');
+      }
     }
-  }
-  
-  else if (msg.type === 'close') {
-    figma.closePlugin();
+    
+    else if (msg.type === 'fix-all-issues') {
+      try {
+        // In a real implementation, this would attempt to fix the issues
+        // For now, we'll just notify the user
+        figma.notify('Fix All functionality would attempt to resolve detached elements');
+        console.log('Fix all issues:', msg.results);
+      } catch (error) {
+        figma.notify('Fix All failed');
+      }
+    }
+    
+    else if (msg.type === 'close') {
+      figma.closePlugin();
+    }
+    
+  } catch (error) {
+    console.error('Error handling message:', error);
+    figma.notify('An error occurred. Please try again.');
+    // Send empty results to prevent UI from hanging
+    if (msg.type === 'scan-selection' || msg.type === 'scan-page' || msg.type === 'scan-file') {
+      figma.ui.postMessage({ type: 'scan-results', results: getEmptyResults() });
+    }
   }
 };
+
+// Helper function to get empty results
+function getEmptyResults() {
+  return {
+    detachedTextStyles: [],
+    detachedVariables: [],
+    detachedLayers: [],
+    summary: {
+      totalDetached: 0,
+      textStyles: 0,
+      variables: 0,
+      layers: 0
+    }
+  };
+}
 
 // Send initial data to UI
 figma.ui.postMessage({ 
