@@ -1,0 +1,23 @@
+{
+  "name": "Design Lint",
+  "id": "design-lint",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma", "dev"],
+  "permissions": ["currentuser"],
+  "networkAccess": {
+    "allowedDomains": ["none"]
+  },
+  "capabilities": ["codegen"],
+  "codegenLanguages": [
+    {
+      "label": "JavaScript",
+      "value": "javascript"
+    },
+    {
+      "label": "TypeScript", 
+      "value": "typescript"
+    }
+  ]
+} 

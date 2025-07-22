@@ -1,0 +1,38 @@
+{
+  "name": "figma-design-lint",
+  "version": "1.0.0",
+  "description": "A Figma plugin that scans files, pages, or selected frames to identify detached components, text styles, variables, and layers",
+  "main": "code.js",
+  "scripts": {
+    "build": "echo 'No build process needed for Figma plugins'",
+    "test": "echo 'No tests specified'",
+    "lint": "echo 'No linter configured'"
+  },
+  "keywords": [
+    "figma",
+    "plugin",
+    "design-system",
+    "detector",
+    "linter",
+    "components",
+    "variables",
+    "text-styles"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/figma-ds-linter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/figma-ds-linter/issues"
+  },
+  "homepage": "https://github.com/your-username/figma-ds-linter#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "figma": {
+    "id": "design-lint",
+    "name": "Design Lint"
+  }
+} 

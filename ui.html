@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Design System Detector</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      /* Figma-inspired color palette */
+      --bg-primary: #2c2c2c;
+      --bg-secondary: #383838;
+      --bg-tertiary: #404040;
+      --bg-elevated: #484848;
+      --text-primary: #ffffff;
+      --text-secondary: #b3b3b3;
+      --text-tertiary: #8e8e8e;
+      --border-primary: #4a4a4a;
+      --border-secondary: #5a5a5a;
+      --accent-primary: #18a0fb;
+      --accent-secondary: #0d8ce0;
+      --accent-hover: #0f7bc7;
+      
+      /* Status colors - Figma style */
+      --success-bg: #1a3a1a;
+      --success-border: #4a7c59;
+      --success-text: #a8e6a8;
+      --warning-bg: #3a2a1a;
+      --warning-border: #7c6a4a;
+      --warning-text: #e6d4a8;
+      --info-bg: #1a2a3a;
+      --info-border: #4a6a7c;
+      --info-text: #a8d4e6;
+      --error-bg: #3a1a1a;
+      --error-border: #7c4a4a;
+      --error-text: #e6a8a8;
+      
+      /* Category colors - Figma style */
+      --text-styles-color: #4ecdc4;
+      --variables-color: #45b7d1;
+      --layers-color: #96ceb4;
+      
+      /* Figma-style shadows */
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+      
+      /* Responsive breakpoints */
+      --breakpoint-small: 375px;
+      --breakpoint-medium: 500px;
+      --breakpoint-large: 600px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.4;
+      font-size: 12px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      width: 100%;
+      height: 100%;
+    }
+
+    .app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-primary);
+      min-width: 375px;
+      max-width: 100vw;
+      width: 375px; /* Default width */
+      min-height: 400px;
+      margin: 0 auto;
+      transition: width 0.3s ease;
+    }
+
+    /* Responsive width adjustments */
+    @media (min-width: 375px) {
+      .app {
+        width: 375px;
+      }
+    }
+
+    @media (min-width: 600px) {
+      .app {
+        width: 600px;
+      }
+    }
+
+    @media (min-width: 700px) {
+      .app {
+        width: 700px;
+      }
+    }
+
+    @media (min-width: 800px) {
+      .app {
+        width: 800px;
+      }
+    }
+
+    .main-content {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Responsive padding adjustments */
+    @media (max-width: 600px) {
+      .main-content {
+        padding: 10px;
+      }
+    }
+
+    /* Figma-style section headers */
+    .section-header {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      padding: 0 4px;
+    }
+
+    /* Figma-style buttons */
+    .button {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      white-space: nowrap;
+    }
+
+    .button:hover {
+      background: var(--bg-elevated);
+      border-color: var(--border-secondary);
+    }
+
+    .button.active {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: white;
+    }
+
+    .button.secondary {
+      background: transparent;
+      border-color: transparent;
+    }
+
+    .button.secondary:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--border-primary);
+    }
+
+    /* Responsive button adjustments */
+    @media (max-width: 600px) {
+      .button {
+        font-size: 11px;
+        padding: 5px 10px;
+        min-height: 26px;
+      }
+    }
+
+    /* Figma-style input fields */
+    .input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .input-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      min-width: 60px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .input-field {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 12px;
+      padding: 4px 8px;
+      min-width: 60px;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+      flex: 1;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      background: var(--bg-elevated);
+    }
+
+    /* Figma-style icon buttons */
+    .icon-button {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .icon-button:hover {
+      background: var(--bg-elevated);
+      border-color: var(--border-secondary);
+      color: var(--text-primary);
+    }
+
+    .icon-button.active {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: white;
+    }
+
+    /* Scan controls layout */
+    .scan-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .scan-button {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: white;
+      font-size: 12px;
+      font-weight: 500;
+      flex-shrink: 0;
+      min-width: 60px;
+      text-align: center;
+      justify-content: center;
+    }
+
+    .scan-button:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    /* Responsive scan controls */
+    @media (max-width: 600px) {
+      .scan-controls {
+        gap: 8px;
+      }
+    }
+
+    /* Figma-style tabs */
+    .tab-group {
+      display: flex;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      padding: 2px;
+      flex: 1;
+      flex-wrap: wrap;
+      gap: 2px;
+    }
+
+    /* Keep results tabs side by side on smaller screens */
+    #results-tabs {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE and Edge */
+    }
+
+    #results-tabs::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+
+    .tab-button {
+      flex: 1;
+      min-width: 0;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 8px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Ensure results tab buttons have minimum width */
+    #results-tabs .tab-button {
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+
+    .tab-button:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-button.active {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .tab-count {
+      background: #e74c3c; /* Red background */
+      color: white;
+      padding: 2px 4px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 600;
+      min-width: 16px;
+      text-align: center;
+      flex-shrink: 0;
+      display: inline-block;
+    }
+
+    /* Hide badge when count is 0 */
+    .tab-count[data-count="0"] {
+      display: none;
+    }
+
+    .tab-button.active .tab-count {
+      background: #c0392b; /* Darker red for active state */
+      color: white;
+    }
+
+    /* Responsive tab adjustments */
+    @media (max-width: 600px) {
+      .tab-button {
+        font-size: 11px;
+        padding: 5px 6px;
+        gap: 4px;
+      }
+      
+      .tab-count {
+        font-size: 9px;
+        padding: 1px 3px;
+      }
+    }
+
+    /* Status banner - Figma style */
+    .status-banner {
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-border);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 8px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--warning-text);
+    }
+
+    .status-banner.success {
+      background: var(--success-bg);
+      border-color: var(--success-border);
+      color: var(--success-text);
+    }
+
+    .status-banner.info {
+      background: var(--info-bg);
+      border-color: var(--info-border);
+      color: var(--info-text);
+    }
+
+    .status-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    /* Responsive status banner */
+    @media (max-width: 600px) {
+      .status-banner {
+        padding: 10px;
+        font-size: 11px;
+        gap: 6px;
+      }
+    }
+
+    /* Loading state - Figma style */
+    .loading-state {
+      text-align: center;
+      padding: 32px 16px;
+      display: none;
+    }
+
+    .loading-spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border-primary);
+      border-top: 2px solid var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* Results section - Figma style */
+    .results-section {
+      display: none;
+    }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 12px;
+    }
+
+    .results-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .results-summary {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Responsive results header */
+    @media (max-width: 600px) {
+      .results-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      
+      .action-buttons {
+        width: 100%;
+        justify-content: flex-end;
+      }
+    }
+
+    /* Item list - Figma style */
+    .item-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0; /* Allow flex item to shrink below content size */
+    }
+
+    /* Redesigned item display - better space utilization */
+    .item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 6px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .item:hover {
+      background: var(--bg-elevated);
+      border-color: var(--border-secondary);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      position: relative;
+    }
+
+    .item-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-primary);
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-badge {
+      background: var(--border-primary);
+      color: var(--text-tertiary);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+
+    /* Color preview display */
+    .color-preview {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      border-left: 3px solid var(--accent-primary);
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+      font-size: 11px;
+    }
+
+    .color-swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px solid var(--border-secondary);
+      flex-shrink: 0;
+      background-image: 
+        linear-gradient(45deg, #ccc 25%, transparent 25%), 
+        linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #ccc 75%), 
+        linear-gradient(-45deg, transparent 75%, #ccc 75%);
+      background-size: 4px 4px;
+      background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
+    }
+
+    .color-hex {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .color-opacity {
+      color: var(--text-secondary);
+      border-left: 1px solid var(--border-secondary);
+      padding-left: 8px;
+      margin-left: 8px;
+    }
+
+    .item-path {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+      word-break: break-all;
+      overflow-wrap: break-word;
+      padding: 6px 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      border-left: 3px solid var(--accent-primary);
+    }
+
+    .item-details {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      padding: 6px 8px;
+      border-radius: 4px;
+      background: var(--bg-tertiary);
+      border-left: 3px solid var(--accent-primary);
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+      word-break: break-all;
+      overflow-wrap: break-word;
+    }
+
+    .item-description {
+      font-size: 11px;
+      color: var(--text-secondary);
+      padding: 6px 8px;
+      border-radius: 4px;
+      background: var(--bg-tertiary);
+      border-left: 3px solid var(--warning-border);
+      word-break: break-all;
+      overflow-wrap: break-word;
+    }
+
+    /* Suggestion section */
+    .suggestion-section {
+      background: var(--success-bg);
+      border: 1px solid var(--success-border);
+      border-radius: 6px;
+      padding: 10px;
+      margin-top: 8px;
+    }
+
+    .suggestion-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .suggestion-icon {
+      font-size: 12px;
+      color: var(--success-text);
+    }
+
+    .suggestion-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--success-text);
+    }
+
+    .suggestion-content {
+      font-size: 10px;
+      color: var(--success-text);
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+
+    .suggestion-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .suggestion-button {
+      background: var(--success-border);
+      border: 1px solid var(--success-border);
+      border-radius: 4px;
+      color: var(--success-text);
+      font-size: 10px;
+      font-weight: 500;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex: 1;
+      text-align: center;
+    }
+
+    .suggestion-button:hover {
+      background: var(--success-text);
+      color: var(--success-bg);
+    }
+
+    .suggestion-button.reject {
+      background: var(--error-bg);
+      border-color: var(--error-border);
+      color: var(--error-text);
+    }
+
+    .suggestion-button.reject:hover {
+      background: var(--error-text);
+      color: var(--error-bg);
+    }
+
+    /* Font properties display */
+    .font-properties {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .font-property {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-secondary);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 10px;
+      color: var(--text-secondary);
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+      flex-shrink: 0;
+    }
+
+    /* Responsive item adjustments */
+    @media (max-width: 600px) {
+      .item {
+        padding: 10px;
+        gap: 6px;
+      }
+      
+      .item-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      
+      .item-badge {
+        align-self: flex-start;
+      }
+
+      .suggestion-actions {
+        flex-direction: column;
+      }
+    }
+
+    /* Empty state - Figma style with vertical centering */
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--text-secondary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      flex: 1;
+    }
+
+    .empty-state-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .empty-state h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .empty-state p {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* Responsive empty state */
+    @media (max-width: 600px) {
+      .empty-state {
+        padding: 24px 12px;
+        min-height: 150px;
+      }
+      
+      .empty-state-icon {
+        font-size: 28px;
+      }
+    }
+
+    /* Tab content */
+    .tab-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .tab-pane {
+      display: none;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .tab-pane.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Responsive tab content */
+    @media (max-width: 600px) {
+      .tab-pane {
+        padding: 0;
+      }
+    }
+
+    /* Scrollbar - Figma style */
+    .scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-secondary) var(--bg-tertiary);
+    }
+
+    .scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .scrollbar::-webkit-scrollbar-track {
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+    }
+
+    .scrollbar::-webkit-scrollbar-thumb {
+      background: var(--border-secondary);
+      border-radius: 3px;
+    }
+
+    .scrollbar::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
+
+    /* Category colors - override with red */
+    .tab-button[data-type="text-styles"] .tab-count { 
+      background: #e74c3c; /* Red */
+      color: white; 
+    }
+    .tab-button[data-type="variables"] .tab-count { 
+      background: #e74c3c; /* Red */
+      color: white; 
+    }
+    .tab-button[data-type="layers"] .tab-count { 
+      background: #e74c3c; /* Red */
+      color: white; 
+    }
+
+    .tab-button.active[data-type="text-styles"] .tab-count { 
+      background: #c0392b; /* Darker red for active */
+    }
+    .tab-button.active[data-type="variables"] .tab-count { 
+      background: #c0392b; /* Darker red for active */
+    }
+    .tab-button.active[data-type="layers"] .tab-count { 
+      background: #c0392b; /* Darker red for active */
+    }
+
+    /* Figma-style divider */
+    .divider {
+      height: 1px;
+      background: var(--border-primary);
+      margin: 12px 0;
+    }
+
+    /* Resize handle for manual resizing */
+    .resize-handle {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: transparent;
+      cursor: ew-resize;
+      z-index: 1000;
+    }
+
+    .resize-handle:hover {
+      background: var(--accent-primary);
+      opacity: 0.3;
+    }
+
+    .resize-handle:active {
+      background: var(--accent-primary);
+      opacity: 0.5;
+    }
+
+    /* Selection empty state container */
+    #selection-empty-state {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Responsive utilities - removed since we want all text visible */
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="resize-handle" id="resize-handle"></div>
+    <main class="main-content scrollbar">
+      <!-- Scan Options Section -->
+      <div class="scan-controls">
+        <div class="tab-group" id="scan-tabs">
+          <button class="tab-button" onclick="scanSelection(event)">
+            <span>Selection</span>
+          </button>
+          <button class="tab-button active" onclick="scanPage(event)">
+            <span>Page</span>
+          </button>
+          <button class="tab-button" onclick="scanFile(event)">
+            <span>File</span>
+          </button>
+        </div>
+        <button class="button scan-button" onclick="triggerScan()">
+          Scan
+        </button>
+      </div>
+
+      <!-- Status Banner -->
+      <div id="status-banner" class="status-banner">
+        <span class="status-icon"></span>
+        <span class="status-text"></span>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading-state" class="loading-state">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Analyzing design system...</div>
+      </div>
+
+      <!-- Results Section -->
+      <div id="results-section" class="results-section">
+        <!-- Results Tabs -->
+        <div class="tab-group" id="results-tabs">
+          <button class="tab-button active" data-type="text-styles" onclick="showTab('text-styles', event)">
+            <span>Text</span>
+            <span class="tab-count" id="text-styles-count">0</span>
+          </button>
+          <button class="tab-button" data-type="variables" onclick="showTab('variables', event)">
+            <span>Color</span>
+            <span class="tab-count" id="variables-count">0</span>
+          </button>
+          <button class="tab-button" data-type="layers" onclick="showTab('layers', event)">
+            <span>Layers</span>
+            <span class="tab-count" id="layers-count">0</span>
+          </button>
+        </div>
+
+        <div class="tab-content">
+          <div id="text-styles-tab" class="tab-pane active">
+            <div id="text-styles-list" class="item-list"></div>
+          </div>
+          <div id="variables-tab" class="tab-pane">
+            <div id="variables-list" class="item-list"></div>
+          </div>
+          <div id="layers-tab" class="tab-pane">
+            <div id="layers-list" class="item-list"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    let currentResults = null;
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    // Initialize plugin
+    window.onload = function() {
+      parent.postMessage({ pluginMessage: { type: 'init' } }, '*');
+      
+      // Set up resize observer for responsive design
+      setupResizeObserver();
+      
+      // Set up scan tab descriptions
+      setupScanTabs();
+      
+      // Set up manual resize functionality
+      setupManualResize();
+      
+      // Auto-scan page on load
+      setTimeout(() => {
+        // Update active state for page tab (scan tabs, second button)
+        document.querySelectorAll('#scan-tabs .tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelector('#scan-tabs .tab-button:nth-child(2)').classList.add('active');
+        showLoading();
+        parent.postMessage({ pluginMessage: { type: 'scan-page' } }, '*');
+      }, 500);
+
+      // Ensure tab selection is maintained
+      setInterval(ensureTabSelection, 1000);
+      setInterval(ensureScanTabSelection, 1000);
+    };
+
+    // Set up manual resize functionality
+    function setupManualResize() {
+      const resizeHandle = document.getElementById('resize-handle');
+      const app = document.querySelector('.app');
+      
+      resizeHandle.addEventListener('mousedown', function(e) {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = app.offsetWidth;
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        
+        e.preventDefault();
+      });
+      
+      function handleMouseMove(e) {
+        if (!isResizing) return;
+        
+        const deltaX = e.clientX - startX;
+        const newWidth = Math.max(375, Math.min(800, startWidth + deltaX));
+        
+        // Update the app container width
+        app.style.width = newWidth + 'px';
+        app.style.transition = 'none';
+        
+        // Send resize message to plugin
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'resize-window', 
+            width: newWidth, 
+            height: 600 
+          } 
+        }, '*');
+      }
+      
+      function handleMouseUp() {
+        isResizing = false;
+        app.style.transition = 'width 0.3s ease';
+        
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      }
+    }
+
+    // Set up scan tab functionality
+    function setupScanTabs() {
+      document.querySelectorAll('#scan-tabs .tab-button').forEach(button => {
+        button.addEventListener('click', function() {
+          // Update active state for scan tabs only
+          document.querySelectorAll('#scan-tabs .tab-button').forEach(btn => btn.classList.remove('active'));
+          this.classList.add('active');
+        });
+      });
+    }
+
+    // Set up resize observer for responsive behavior
+    function setupResizeObserver() {
+      const resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+          const { width, height } = entry.contentRect;
+          handleResize(width, height);
+        }
+      });
+      
+      resizeObserver.observe(document.body);
+    }
+
+    // Handle window resize
+    function handleResize(width, height) {
+      const app = document.querySelector('.app');
+      
+      // Adjust layout based on window size
+      if (width < 375) {
+        app.style.minWidth = '375px';
+      } else {
+        app.style.minWidth = '375px';
+      }
+    }
+
+    // Handle messages from plugin
+    window.onmessage = function(event) {
+      const msg = event.data.pluginMessage;
+      console.log('UI: Received message:', msg?.type);
+      
+      if (msg.type === 'init') {
+        showStatus(`Ready to scan • Current page: ${msg.pageName}`, 'info');
+        if (msg.selectionCount > 0) {
+          showStatus(`${msg.selectionCount} item(s) selected • Click "Selection" to scan`, 'info');
+        }
+      }
+      
+      else if (msg.type === 'scan-results') {
+        console.log('UI: Received scan results:', msg.results);
+        hideLoading();
+        currentResults = msg.results;
+        displayResults(msg.results);
+      }
+      
+      else if (msg.type === 'no-selection') {
+        console.log('UI: No selection detected');
+        hideLoading();
+        showSelectionEmptyState();
+      }
+    };
+
+    function scanSelection(event) {
+      console.log('UI: Sending scan-selection message');
+      // Update active state for scan tabs only
+      document.querySelectorAll('#scan-tabs .tab-button').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.tab-button').classList.add('active');
+      showLoading();
+      parent.postMessage({ pluginMessage: { type: 'scan-selection' } }, '*');
+    }
+
+    function scanPage(event) {
+      console.log('UI: Sending scan-page message');
+      // Update active state for scan tabs only
+      document.querySelectorAll('#scan-tabs .tab-button').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.tab-button').classList.add('active');
+      showLoading();
+      parent.postMessage({ pluginMessage: { type: 'scan-page' } }, '*');
+    }
+
+    function scanFile(event) {
+      console.log('UI: Sending scan-file message');
+      // Update active state for scan tabs only
+      document.querySelectorAll('#scan-tabs .tab-button').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.tab-button').classList.add('active');
+      showLoading();
+      parent.postMessage({ pluginMessage: { type: 'scan-file' } }, '*');
+    }
+
+    // Helper function to ensure scan tab selection
+    function ensureScanTabSelection() {
+      const scanTabs = document.querySelectorAll('#scan-tabs .tab-button');
+      const activeScanTab = document.querySelector('#scan-tabs .tab-button.active');
+      if (!activeScanTab && scanTabs.length > 0) {
+        scanTabs[1].classList.add('active'); // Default to Page tab
+      }
+    }
+
+    function showLoading() {
+      // Hide selection empty state if it's showing
+      const selectionEmptyState = document.getElementById('selection-empty-state');
+      if (selectionEmptyState) {
+        selectionEmptyState.style.display = 'none';
+      }
+      
+      document.getElementById('loading-state').style.display = 'block';
+      document.getElementById('results-section').style.display = 'none';
+      hideStatus();
+    }
+
+    function hideLoading() {
+      document.getElementById('loading-state').style.display = 'none';
+    }
+
+    function showStatus(message, type = 'info') {
+      const banner = document.getElementById('status-banner');
+      const icon = banner.querySelector('.status-icon');
+      const text = banner.querySelector('.status-text');
+      
+      text.textContent = message;
+      banner.className = `status-banner ${type}`;
+      
+      switch(type) {
+        case 'success':
+          icon.textContent = '✅';
+          break;
+        case 'warning':
+          icon.textContent = '⚠️';
+          break;
+        case 'info':
+          icon.textContent = 'ℹ️';
+          break;
+      }
+      
+      banner.style.display = 'flex';
+    }
+
+    function hideStatus() {
+      document.getElementById('status-banner').style.display = 'none';
+    }
+
+    function showSelectionEmptyState() {
+      // Hide results section and show empty state in main content
+      document.getElementById('results-section').style.display = 'none';
+      hideStatus();
+      
+      // Create and show selection empty state
+      const mainContent = document.querySelector('.main-content');
+      let emptyStateContainer = document.getElementById('selection-empty-state');
+      
+      if (!emptyStateContainer) {
+        emptyStateContainer = document.createElement('div');
+        emptyStateContainer.id = 'selection-empty-state';
+        emptyStateContainer.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🎯</div>
+            <h3>Select elements to analyze</h3>
+            <p>Choose any frames, components, or text layers in your Figma file, then click "Selection" to discover design system opportunities.</p>
+          </div>
+        `;
+        mainContent.appendChild(emptyStateContainer);
+      }
+      
+      emptyStateContainer.style.display = 'block';
+    }
+
+    function displayResults(results) {
+      // Hide selection empty state if it's showing
+      const selectionEmptyState = document.getElementById('selection-empty-state');
+      if (selectionEmptyState) {
+        selectionEmptyState.style.display = 'none';
+      }
+      
+      // Update summary counts in tab buttons
+      const textStylesCount = document.getElementById('text-styles-count');
+      const variablesCount = document.getElementById('variables-count');
+      const layersCount = document.getElementById('layers-count');
+      
+      textStylesCount.textContent = results.summary.textStyles;
+      textStylesCount.setAttribute('data-count', results.summary.textStyles);
+      
+      variablesCount.textContent = results.summary.variables;
+      variablesCount.setAttribute('data-count', results.summary.variables);
+      
+      layersCount.textContent = results.summary.layers;
+      layersCount.setAttribute('data-count', results.summary.layers);
+
+      // Display text styles
+      displayList('text-styles-list', results.detachedTextStyles, 'text-style');
+      
+      // Display variables
+      displayList('variables-list', results.detachedVariables, 'variable');
+      
+      // Display layers
+      displayList('layers-list', results.detachedLayers, 'layer');
+
+      // Show results
+      document.getElementById('results-section').style.display = 'block';
+
+      // Show status
+      if (results.summary.totalDetached === 0) {
+        showStatus('Yey! No issues found on this one!', 'success');
+      } else {
+        showStatus(`Found ${results.summary.totalDetached} detached elements`, 'warning');
+      }
+    }
+
+    function displayList(containerId, items, type) {
+      const container = document.getElementById(containerId);
+      
+      if (items.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">✨</div>
+            <h3>No detached ${type.replace('-', ' ')}s found</h3>
+            <p>${type === 'text-style' ? 'All text elements have proper styles applied' : 
+                type === 'variable' ? 'All colors and effects are using variables' : 
+                type === 'layer' ? 'All custom shapes are properly organized' : 
+                type === 'component' ? 'All frames and groups are using proper components' : 
+                `All ${type.replace('-', ' ')}s are properly connected to your design system`}</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = items.map(item => {
+        let matchBadge = '';
+        if (item.suggestedTextStyle && item.matchType) {
+          const matchColors = {
+            'exact': '#4CAF50',
+            'partial': '#FF9800',
+            'fuzzy': '#2196F3'
+          };
+          const matchLabels = {
+            'exact': 'Exact Match',
+            'partial': 'Partial Match',
+            'fuzzy': 'Similar Match'
+          };
+          matchBadge = `<div class="item-badge" style="background: ${matchColors[item.matchType]}; color: white; position: absolute; top: 0; right: 60px;">${matchLabels[item.matchType]}</div>`;
+        } else if (item.suggestedVariable && item.matchType) {
+          const matchColors = {
+            'exact': '#4CAF50',
+            'similar': '#FF9800'
+          };
+          const matchLabels = {
+            'exact': 'Exact Match',
+            'similar': 'Similar Match'
+          };
+          matchBadge = `<div class="item-badge" style="background: ${matchColors[item.matchType]}; color: white; position: absolute; top: 0; right: 60px;">${matchLabels[item.matchType]}</div>`;
+        }
+        
+        // Generate suggestion section based on item type
+        let suggestionSection = '';
+        if (type === 'text-style' && item.suggestedTextStyle) {
+          suggestionSection = generateTextStyleSuggestion(item);
+        } else if (type === 'variable' && item.suggestedVariable) {
+          suggestionSection = generateVariableSuggestion(item);
+        }
+        
+        // Generate font properties for text items
+        let fontProperties = '';
+        if (type === 'text-style' && item.fontName) {
+          fontProperties = generateFontProperties(item);
+        }
+        
+        // Generate color preview for variables
+        let colorPreview = '';
+        if (type === 'variable' && item.color) {
+          // Use the opacity from the item data, fallback to color.a if not available
+          const opacity = Math.round((item.opacity !== undefined ? item.opacity : (item.color.a || 1)) * 100);
+          console.log('Creating color preview for item:', item.name, 'Opacity:', item.opacity, 'Color.a:', item.color.a, 'Final opacity:', opacity);
+          // Create rgba color for better opacity display
+          const r = Math.round(item.color.r * 255);
+          const g = Math.round(item.color.g * 255);
+          const b = Math.round(item.color.b * 255);
+          const a = item.opacity !== undefined ? item.opacity : (item.color.a || 1);
+          const rgbaColor = `rgba(${r}, ${g}, ${b}, ${a})`;
+          
+          // Only show transparency pattern if opacity is less than 100%
+          const showTransparencyPattern = opacity < 100;
+          const swatchStyle = showTransparencyPattern 
+            ? `background-color: ${rgbaColor}; background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 4px 4px; background-position: 0 0, 0 2px, 2px -2px, -2px 0px;`
+            : `background-color: ${rgbaColor}; background-image: none;`;
+          
+          colorPreview = `
+            <div class="color-preview">
+              <div class="color-swatch" style="${swatchStyle}"></div>
+              <span class="color-hex">${item.value}</span>
+              <span class="color-opacity">${opacity}%</span>
+            </div>
+          `;
+        }
+        
+        return `
+          <div class="item" onclick="selectNode('${item.id}')">
+            <div class="item-header">
+              <div class="item-title">${escapeHtml(item.name)}</div>
+              <div class="item-badge">${item.type}</div>
+              ${matchBadge}
+            </div>
+            <div class="item-path">${escapeHtml(item.path)}</div>
+            ${item.characters ? `<div class="item-details">"${escapeHtml(item.characters)}"</div>` : ''}
+            ${colorPreview}
+            ${item.description ? `<div class="item-description">${escapeHtml(item.description)}</div>` : ''}
+            ${fontProperties}
+            ${suggestionSection}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function generateTextStyleSuggestion(item) {
+      const matchColors = {
+        'exact': '#4CAF50',
+        'partial': '#FF9800',
+        'fuzzy': '#2196F3'
+      };
+      
+      return `
+        <div class="suggestion-section">
+          <div class="suggestion-header">
+            <span class="suggestion-icon">💡</span>
+            <span class="suggestion-title">Apply Text Style</span>
+            <div class="item-badge" style="background: ${matchColors[item.matchType]}; color: white;">${item.matchType} match</div>
+          </div>
+          <div class="suggestion-content">
+            Apply the text style <strong>"${escapeHtml(item.suggestedTextStyle)}"</strong> to this text element.
+          </div>
+          <div class="suggestion-actions">
+            <button class="suggestion-button" onclick="applyTextStyle('${item.id}', '${item.suggestedTextStyleId}')">
+              Apply Style
+            </button>
+            <button class="suggestion-button reject" onclick="rejectSuggestion('${item.id}', 'text-style')">
+              Ignore
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function generateVariableSuggestion(item) {
+      const matchColors = {
+        'exact': '#4CAF50',
+        'similar': '#FF9800'
+      };
+      
+      return `
+        <div class="suggestion-section">
+          <div class="suggestion-header">
+            <span class="suggestion-icon">🎨</span>
+            <span class="suggestion-title">Use Color Variable</span>
+            <div class="item-badge" style="background: ${matchColors[item.matchType]}; color: white;">${item.matchType} match</div>
+          </div>
+          <div class="suggestion-content">
+            Replace this color with the variable <strong>"${escapeHtml(item.suggestedVariable)}"</strong>.
+          </div>
+          <div class="suggestion-actions">
+            <button class="suggestion-button" onclick="applyColorVariable('${item.id}', '${item.suggestedVariableId}', '${item.property}')">
+              Apply Variable
+            </button>
+            <button class="suggestion-button reject" onclick="rejectSuggestion('${item.id}', 'variable')">
+              Ignore
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+
+
+    function generateFontProperties(item) {
+      const properties = [];
+      
+      if (item.fontName) {
+        properties.push(`${item.fontName.family} ${item.fontName.style}`);
+      }
+      if (item.fontSize) {
+        properties.push(`${item.fontSize}px`);
+      }
+      if (item.lineHeight) {
+        if (item.lineHeight.unit === 'PIXELS') {
+          properties.push(`line-height: ${item.lineHeight.value}px`);
+        } else if (item.lineHeight.unit === 'PERCENT') {
+          properties.push(`line-height: ${item.lineHeight.value}%`);
+        }
+      }
+      if (item.letterSpacing) {
+        if (item.letterSpacing.unit === 'PIXELS') {
+          properties.push(`letter-spacing: ${item.letterSpacing.value}px`);
+        } else if (item.letterSpacing.unit === 'PERCENT') {
+          properties.push(`letter-spacing: ${item.letterSpacing.value}%`);
+        }
+      }
+      
+      if (properties.length === 0) return '';
+      
+      return `
+        <div class="font-properties">
+          ${properties.map(prop => `<span class="font-property">${escapeHtml(prop)}</span>`).join('')}
+        </div>
+      `;
+    }
+
+    function selectNode(nodeId) {
+      parent.postMessage({ pluginMessage: { type: 'select-node', nodeId } }, '*');
+    }
+
+    function showTab(tabName, event) {
+      // Hide all result tab panes
+      document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+      });
+      
+      // Remove active class from only the results tab buttons (not scan tabs)
+      document.querySelectorAll('#results-tabs .tab-button').forEach(tab => {
+        tab.classList.remove('active');
+      });
+
+      // Show selected tab
+      document.getElementById(`${tabName}-tab`).classList.add('active');
+      event.target.closest('.tab-button').classList.add('active');
+    }
+
+    // Ensure at least one results tab is always selected
+    function ensureTabSelection() {
+      const resultsTabGroup = document.getElementById('results-tabs');
+      const activeResultsTabs = resultsTabGroup.querySelectorAll('.tab-button.active');
+      
+      if (activeResultsTabs.length === 0) {
+        // If no results tab is active, activate the first one
+        const firstResultsTab = resultsTabGroup.querySelector('.tab-button');
+        if (firstResultsTab) {
+          firstResultsTab.classList.add('active');
+          const tabType = firstResultsTab.getAttribute('data-type');
+          if (tabType) {
+            document.getElementById(`${tabType}-tab`).classList.add('active');
+          }
+        }
+      }
+    }
+
+    function exportResults() {
+      if (currentResults) {
+        parent.postMessage({ pluginMessage: { type: 'export-results', results: currentResults } }, '*');
+      }
+    }
+
+    function fixAllIssues() {
+      if (currentResults && currentResults.summary.totalDetached > 0) {
+        parent.postMessage({ pluginMessage: { type: 'fix-all-issues', results: currentResults } }, '*');
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function closePlugin() {
+      parent.postMessage({ pluginMessage: { type: 'close' } }, '*');
+    }
+
+    // Suggestion action functions
+    function applyTextStyle(nodeId, textStyleId) {
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'apply-text-style', 
+          nodeId: nodeId, 
+          textStyleId: textStyleId 
+        } 
+      }, '*');
+    }
+
+    function applyColorVariable(nodeId, variableId, propertyPath) {
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'apply-color-variable', 
+          nodeId: nodeId, 
+          variableId: variableId, 
+          propertyPath: propertyPath 
+        } 
+      }, '*');
+    }
+
+
+
+    function rejectSuggestion(nodeId, suggestionType) {
+      // For now, just show a notification
+      // In a future version, this could track rejected suggestions
+      showStatus(`Suggestion for ${suggestionType} ignored`, 'info');
+    }
+
+    function triggerScan() {
+      // Find the currently active scan tab
+      const activeScanTab = document.querySelector('#scan-tabs .tab-button.active');
+      if (!activeScanTab) return;
+      
+      // Get the text content to determine which scan to trigger
+      const tabText = activeScanTab.textContent.trim().toLowerCase();
+      
+      if (tabText === 'selection') {
+        scanSelection({ target: activeScanTab });
+      } else if (tabText === 'page') {
+        scanPage({ target: activeScanTab });
+      } else if (tabText === 'file') {
+        scanFile({ target: activeScanTab });
+      }
+    }
+  </script>
+</body>
+</html> 
