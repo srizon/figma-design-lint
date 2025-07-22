@@ -1,5 +1,7 @@
 # Design Lint - Figma Plugin
 
+**Version 1.1.1**
+
 A Figma plugin that helps maintain design system consistency by identifying detached elements and suggesting fixes from your existing design tokens.
 
 ## Features
@@ -10,6 +12,8 @@ A Figma plugin that helps maintain design system consistency by identifying deta
 - **🧩 Component Detection** - Locate shapes and layers not organized in components
 - **📚 Library Support** - Full support for text styles from connected libraries
 - **⚡ One-Click Fixes** - Apply suggested text styles and color variables instantly
+- **🎯 Smart Empty State Detection** - Distinguishes between empty pages and clean, well-organized designs
+- **📱 Responsive UI** - Optimized layout with proper vertical centering and modern Figma-style interface
 
 ## Installation
 
@@ -57,9 +61,33 @@ Text layers that don't use your design system's text styles, with suggestions fr
 - Custom shapes, vectors, and elements not organized in components
 - Groups that could benefit from componentization
 
+## Recent Improvements (v1.1.1)
+
+### Enhanced User Experience
+- **Smart Empty State Messaging**: Now distinguishes between truly empty pages and well-organized designs with no issues
+- **Improved Visual Layout**: Better vertical centering and responsive design
+- **Context-Aware Messages**: Different messaging for Selection, Page, and File scans
+- **Better Status Feedback**: More informative notifications and progress indicators
+
+### Technical Improvements
+- **Optimized Performance**: Better handling of large files and complex component structures
+- **Enhanced Accessibility**: Improved screen reader support and keyboard navigation
+- **Versioning System**: Automated version management with semantic versioning
+- **Development Workflow**: Git hooks and automated processes for consistent releases
+
 ## Contributing
 
 Contributions welcome! Please open an issue for major changes before submitting a pull request.
+
+### Development Setup
+
+1. Clone the repository and install dependencies
+2. Run `npm run setup-hooks` to configure Git hooks
+3. Use version scripts for releases:
+   - `npm run version:patch` - Bug fixes
+   - `npm run version:minor` - New features
+   - `npm run version:major` - Breaking changes
+   - `npm run version:auto` - Automatic versioning
 
 ## License
 

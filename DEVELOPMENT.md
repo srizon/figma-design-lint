@@ -1,5 +1,7 @@
 # Development Guide
 
+**Version 1.1.1**
+
 This guide will help you set up the development environment and contribute to the Figma Design Lint plugin.
 
 ## Prerequisites
@@ -80,6 +82,13 @@ figma-design-lint/
 - **Simplified Logic**: Removed complex library component importing that caused hanging
 - **UI Reliability**: Ensures scan always completes with proper error display
 - **Instance Limiting**: Limited to first 50 instances for performance
+
+### User Experience Improvements (v1.1.1)
+- **Smart Empty State Detection**: Distinguishes between empty pages and clean designs
+- **Improved Visual Layout**: Better vertical centering and responsive design
+- **Context-Aware Messaging**: Different messages for Selection/Page/File scans
+- **Enhanced Accessibility**: Better screen reader support and keyboard navigation
+- **Versioning System**: Automated semantic versioning with Git hooks
 
 ### Key Features
 - **Text Style Detection**: Finds text without applied styles
