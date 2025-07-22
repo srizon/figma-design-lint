@@ -6,14 +6,14 @@ A Figma plugin that helps maintain design system consistency by identifying deta
 
 ## Features
 
-- **🔍 Comprehensive Scanning** - Analyze selection, current page, or entire file
-- **📝 Text Style Detection** - Find text without applied styles with smart matching suggestions
-- **🎨 Color Variable Detection** - Identify colors that could use design tokens
-- **🧩 Component Detection** - Locate shapes and layers not organized in components
-- **📚 Library Support** - Full support for text styles from connected libraries
-- **⚡ One-Click Fixes** - Apply suggested text styles and color variables instantly
-- **🎯 Smart Empty State Detection** - Distinguishes between empty pages and clean, well-organized designs
-- **📱 Responsive UI** - Optimized layout with proper vertical centering and modern Figma-style interface
+- **Comprehensive Scanning** - Analyze selection, current page, or entire file
+- **Text Style Detection** - Find text without applied styles with smart matching suggestions
+- **Color Variable Detection** - Identify colors that could use design tokens
+- **Component Detection** - Locate shapes and layers not organized in components
+- **Library Support** - Full support for text styles from connected libraries
+- **One-Click Fixes** - Apply suggested text styles and color variables instantly
+- **Smart Empty State Detection** - Distinguishes between empty pages and clean, well-organized designs
+- **Responsive UI** - Optimized layout with proper vertical centering and modern Figma-style interface
 
 ## Installation
 
